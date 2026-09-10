@@ -1,8 +1,4 @@
 // lib/supabase/hooks.ts
-// Custom hooks para usar en Client Components ('use client').
-// Usan el cliente browser (createBrowserClient) y exponen
-// estados de loading, error y funciones de refetch.
-
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -19,20 +15,15 @@ import type {
   TipoInteraccion,
 } from '@/lib/types'
 
-// ─── Tipos de retorno ──────────────────────────────────────────────────────
-
 interface AsyncState<T> {
   data: T | null
   loading: boolean
   error: string | null
 }
 
-// Fila raw del JOIN oportunidades → clientes
 interface OportunidadConCliente extends Oportunidad {
   cliente: Cliente
 }
-
-// ─── Helper ────────────────────────────────────────────────────────────────
 
 function extractMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -53,19 +44,11 @@ interface UseClientesReturn {
   refetch: () => void
 }
 
-/**
- * Obtiene todos los clientes ordenados por ultima_interaccion DESC.
- */
 export function useClientes(): UseClientesReturn {
-  const [state, setState] = useState<AsyncState<Cliente[]>>({
-    data: null,
-    loading: true,
-    error: null,
-  })
+  const [state, setState] = useState<AsyncState<Cliente[]>>({ data: null, loading: true, error: null })
 
   const fetch = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }))
-
     const supabase = createClient()
     const { data, error } = await supabase
       .from('clientes')
@@ -79,16 +62,9 @@ export function useClientes(): UseClientesReturn {
     }
   }, [])
 
-  useEffect(() => {
-    fetch()
-  }, [fetch])
+  useEffect(() => { fetch() }, [fetch])
 
-  return {
-    clientes: state.data ?? [],
-    loading: state.loading,
-    error: state.error,
-    refetch: fetch,
-  }
+  return { clientes: state.data ?? [], loading: state.loading, error: state.error, refetch: fetch }
 }
 
 // ============================================================
@@ -102,29 +78,17 @@ interface UseClienteReturn {
   refetch: () => void
 }
 
-/**
- * Obtiene un cliente por ID con sus oportunidades e interacciones.
- */
 export function useCliente(id: string): UseClienteReturn {
-  const [state, setState] = useState<AsyncState<ClienteConRelaciones>>({
-    data: null,
-    loading: true,
-    error: null,
-  })
+  const [state, setState] = useState<AsyncState<ClienteConRelaciones>>({ data: null, loading: true, error: null })
 
   const fetch = useCallback(async () => {
     if (!id) return
-
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     const supabase = createClient()
     const { data, error } = await supabase
       .from('clientes')
-      .select(`
-        *,
-        oportunidades ( * ),
-        interacciones ( * )
-      `)
+      .select(`*, oportunidades ( * ), interacciones ( * )`)
       .eq('id', id)
       .single()
 
@@ -141,6 +105,7 @@ export function useCliente(id: string): UseClienteReturn {
       canal_entrada: data.canal_entrada as CanalEntrada,
       created_at: data.created_at,
       ultima_interaccion: data.ultima_interaccion,
+      creado_por: data.creado_por ?? null,
       oportunidades: (data.oportunidades ?? []).map(
         (o: Record<string, unknown>) => ({
           id: o.id as string,
@@ -149,6 +114,8 @@ export function useCliente(id: string): UseClienteReturn {
           monto: o.monto as number | null,
           detalle_cotizacion: o.detalle_cotizacion as string | null,
           created_at: o.created_at as string,
+          creado_por: o.creado_por as string | null,
+          creado_por_nombre: o.creado_por_nombre as string | null,
         })
       ),
       interacciones: (data.interacciones ?? []).map(
@@ -158,6 +125,8 @@ export function useCliente(id: string): UseClienteReturn {
           tipo: i.tipo as TipoInteraccion,
           descripcion: i.descripcion as string,
           created_at: i.created_at as string,
+          creado_por: i.creado_por as string | null,
+          creado_por_nombre: i.creado_por_nombre as string | null,
         })
       ),
     }
@@ -165,16 +134,9 @@ export function useCliente(id: string): UseClienteReturn {
     setState({ data: cliente, loading: false, error: null })
   }, [id])
 
-  useEffect(() => {
-    fetch()
-  }, [fetch])
+  useEffect(() => { fetch() }, [fetch])
 
-  return {
-    cliente: state.data,
-    loading: state.loading,
-    error: state.error,
-    refetch: fetch,
-  }
+  return { cliente: state.data, loading: state.loading, error: state.error, refetch: fetch }
 }
 
 // ============================================================
@@ -187,15 +149,8 @@ interface UseOportunidadesReturn {
   error: string | null
 }
 
-/**
- * Obtiene todas las oportunidades con el cliente relacionado.
- */
 export function useOportunidades(): UseOportunidadesReturn {
-  const [state, setState] = useState<AsyncState<OportunidadConCliente[]>>({
-    data: null,
-    loading: true,
-    error: null,
-  })
+  const [state, setState] = useState<AsyncState<OportunidadConCliente[]>>({ data: null, loading: true, error: null })
 
   useEffect(() => {
     let cancelled = false
@@ -204,10 +159,7 @@ export function useOportunidades(): UseOportunidadesReturn {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('oportunidades')
-        .select(`
-          *,
-          cliente:clientes ( * )
-        `)
+        .select(`*, cliente:clientes ( * )`)
         .order('created_at', { ascending: false })
 
       if (cancelled) return
@@ -224,6 +176,8 @@ export function useOportunidades(): UseOportunidadesReturn {
         monto: row.monto as number | null,
         detalle_cotizacion: row.detalle_cotizacion as string | null,
         created_at: row.created_at,
+        creado_por: row.creado_por ?? null,
+        creado_por_nombre: row.creado_por_nombre ?? null,
         cliente: row.cliente as Cliente,
       }))
 
@@ -231,30 +185,20 @@ export function useOportunidades(): UseOportunidadesReturn {
     }
 
     fetch().catch((err: unknown) => {
-      if (!cancelled) {
-        setState({ data: null, loading: false, error: extractMessage(err) })
-      }
+      if (!cancelled) setState({ data: null, loading: false, error: extractMessage(err) })
     })
 
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [])
 
-  return {
-    oportunidades: state.data ?? [],
-    loading: state.loading,
-    error: state.error,
-  }
+  return { oportunidades: state.data ?? [], loading: state.loading, error: state.error }
 }
 
 // ============================================================
 // useOportunidadesPorEstado
 // ============================================================
 
-type OportunidadesPorEstado = {
-  [key in EstadoPipeline]: OportunidadConCliente[]
-}
+type OportunidadesPorEstado = { [key in EstadoPipeline]: OportunidadConCliente[] }
 
 interface UseOportunidadesPorEstadoReturn {
   oportunidades: OportunidadesPorEstado
@@ -270,16 +214,10 @@ const ESTADO_PIPELINE_VACIO: OportunidadesPorEstado = {
   perdido: [],
 }
 
-/**
- * Obtiene todas las oportunidades agrupadas por estado del pipeline.
- * Ideal para alimentar el tablero Kanban.
- */
 export function useOportunidadesPorEstado(): UseOportunidadesPorEstadoReturn {
   const { oportunidades, loading, error } = useOportunidades()
 
-  if (loading || error) {
-    return { oportunidades: ESTADO_PIPELINE_VACIO, loading, error }
-  }
+  if (loading || error) return { oportunidades: ESTADO_PIPELINE_VACIO, loading, error }
 
   const agrupadas: OportunidadesPorEstado = {
     consulta: [],
@@ -307,9 +245,6 @@ interface UseHistorialReturn {
   refetch: () => Promise<void>
 }
 
-/**
- * Obtiene todas las interacciones de todos los clientes ordenadas por fecha DESC.
- */
 export function useHistorial(): UseHistorialReturn {
   const [interacciones, setInteracciones] = useState<InteraccionConCliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -318,22 +253,17 @@ export function useHistorial(): UseHistorialReturn {
   const fetch = useCallback(async () => {
     setLoading(true)
     setError(null)
-
     const { data, error: fetchError } = await getTodasInteracciones()
-
     if (fetchError || !data) {
       setError(fetchError ?? 'Error al cargar el historial')
       setInteracciones([])
     } else {
       setInteracciones(data)
     }
-
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    fetch()
-  }, [fetch])
+  useEffect(() => { fetch() }, [fetch])
 
   return { interacciones, loading, error, refetch: fetch }
 }

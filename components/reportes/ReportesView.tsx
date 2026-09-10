@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   Users, TrendingUp, Target, DollarSign, RefreshCw,
   PhoneCall, AlertCircle, ExternalLink, ArrowUpRight,
-  CheckCircle2, XCircle, Clock, MessageCircle,
+  CheckCircle2, XCircle, Clock, User,
 } from 'lucide-react'
 import { getReportesData } from '@/lib/supabase/queries'
 import type { Cliente, Oportunidad, Interaccion } from '@/lib/types'
@@ -55,8 +55,6 @@ function formatUltimoContacto(fecha: string | null): string {
   return `hace ${dias} días`
 }
 
-// ── KPI Card ──────────────────────────────────────────────────────────────────
-
 function KpiCard({ icon: Icon, label, value, sub, iconBg, iconColor, trend }: {
   icon: React.ElementType; label: string; value: string; sub: string
   iconBg: string; iconColor: string; trend?: { value: string; positive: boolean }
@@ -83,8 +81,6 @@ function KpiCard({ icon: Icon, label, value, sub, iconBg, iconColor, trend }: {
   )
 }
 
-// ── Bar Chart Row ─────────────────────────────────────────────────────────────
-
 function BarRow({ label, count, total, barClass }: { label: string; count: number; total: number; barClass: string }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
@@ -100,8 +96,6 @@ function BarRow({ label, count, total, barClass }: { label: string; count: numbe
   )
 }
 
-// ── Section Card ──────────────────────────────────────────────────────────────
-
 function SectionCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -113,8 +107,6 @@ function SectionCard({ title, subtitle, children }: { title: string; subtitle?: 
     </div>
   )
 }
-
-// ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
   return (
@@ -128,25 +120,9 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="h-4 w-40 bg-gray-100 rounded mb-5" />
-            {Array.from({ length: 4 }).map((_, j) => (
-              <div key={j} className="flex items-center gap-3 mb-3">
-                <div className="h-3 w-28 bg-gray-100 rounded" />
-                <div className="flex-1 h-2 bg-gray-100 rounded-full" />
-                <div className="h-3 w-12 bg-gray-100 rounded" />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
 
 function useReportesData() {
   const [state, setState] = useState({ clientes: [] as Cliente[], oportunidades: [] as Oportunidad[], interacciones: [] as Interaccion[], loading: true, error: null as string | null })
@@ -158,8 +134,6 @@ function useReportesData() {
   useEffect(() => { fetch() }, [fetch])
   return { ...state, refetch: fetch }
 }
-
-// ── Componente principal ──────────────────────────────────────────────────────
 
 export function ReportesView() {
   const { clientes, oportunidades, interacciones, loading, error, refetch } = useReportesData()
@@ -181,6 +155,22 @@ export function ReportesView() {
     const interaccionesByTipo = Object.fromEntries(TIPOS_ALL.map(t => [t, 0])) as Record<TipoInteraccion, number>
     for (const i of interacciones) interaccionesByTipo[i.tipo]++
 
+    // ── Actividad por vendedor ─────────────────────────────────────────────
+    const vendedoresMap = new Map<string, { interacciones: number; oportunidades: number }>()
+    for (const i of interacciones) {
+      const nombre = i.creado_por_nombre ?? 'Sin asignar'
+      if (!vendedoresMap.has(nombre)) vendedoresMap.set(nombre, { interacciones: 0, oportunidades: 0 })
+      vendedoresMap.get(nombre)!.interacciones++
+    }
+    for (const o of oportunidades) {
+      const nombre = o.creado_por_nombre ?? 'Sin asignar'
+      if (!vendedoresMap.has(nombre)) vendedoresMap.set(nombre, { interacciones: 0, oportunidades: 0 })
+      vendedoresMap.get(nombre)!.oportunidades++
+    }
+    const vendedores = [...vendedoresMap.entries()]
+      .map(([nombre, stats]) => ({ nombre, ...stats }))
+      .sort((a, b) => b.interacciones - a.interacciones)
+
     const sinContacto = clientes
       .filter((c) => !c.ultima_interaccion || diasDesde(c.ultima_interaccion) > 30)
       .sort((a, b) => {
@@ -193,7 +183,7 @@ export function ReportesView() {
     return {
       activos, abiertasCount: abiertas.length, ganadas, perdidas,
       tasaCierre, valorPipeline, pipelineByEstado, clientesByCanal,
-      interaccionesByTipo, sinContacto,
+      interaccionesByTipo, sinContacto, vendedores,
       totalOportunidades: oportunidades.length,
       totalClientes: clientes.length,
       totalInteracciones: interacciones.length,
@@ -203,7 +193,6 @@ export function ReportesView() {
   return (
     <div className="space-y-6">
 
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Reportes</h1>
@@ -232,30 +221,13 @@ export function ReportesView() {
 
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard
-              icon={Users} label="Clientes activos"
-              value={String(m.activos)} sub={`de ${m.totalClientes} en total`}
-              iconBg="bg-blue-50" iconColor="text-blue-600"
-            />
-            <KpiCard
-              icon={DollarSign} label="Valor pipeline"
-              value={formatMonto(m.valorPipeline)} sub={`${m.abiertasCount} oportunidades abiertas`}
-              iconBg="bg-emerald-50" iconColor="text-emerald-600"
-            />
-            <KpiCard
-              icon={Target} label="Tasa de cierre"
-              value={m.tasaCierre ? `${m.tasaCierre}%` : '—'}
-              sub={`${m.ganadas} ganadas · ${m.perdidas} perdidas`}
-              iconBg="bg-violet-50" iconColor="text-violet-600"
-            />
-            <KpiCard
-              icon={TrendingUp} label="Total oportunidades"
-              value={String(m.totalOportunidades)} sub={`${m.totalInteracciones} interacciones registradas`}
-              iconBg="bg-amber-50" iconColor="text-amber-600"
-            />
+            <KpiCard icon={Users} label="Clientes activos" value={String(m.activos)} sub={`de ${m.totalClientes} en total`} iconBg="bg-blue-50" iconColor="text-blue-600" />
+            <KpiCard icon={DollarSign} label="Valor pipeline" value={formatMonto(m.valorPipeline)} sub={`${m.abiertasCount} oportunidades abiertas`} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+            <KpiCard icon={Target} label="Tasa de cierre" value={m.tasaCierre ? `${m.tasaCierre}%` : '—'} sub={`${m.ganadas} ganadas · ${m.perdidas} perdidas`} iconBg="bg-violet-50" iconColor="text-violet-600" />
+            <KpiCard icon={TrendingUp} label="Total oportunidades" value={String(m.totalOportunidades)} sub={`${m.totalInteracciones} interacciones registradas`} iconBg="bg-amber-50" iconColor="text-amber-600" />
           </div>
 
-          {/* Resumen rápido */}
+          {/* Resumen */}
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
@@ -285,6 +257,34 @@ export function ReportesView() {
               </div>
             </div>
           </div>
+
+          {/* Actividad por vendedor */}
+          {m.vendedores.length > 0 && (
+            <SectionCard title="Actividad por vendedor" subtitle="Interacciones y oportunidades creadas por cada uno">
+              <div className="space-y-3">
+                {m.vendedores.map((v) => (
+                  <div key={v.nombre} className="flex items-center gap-4 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: BRAND }}>
+                      {v.nombre.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{v.nombre}</p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-gray-900">{v.interacciones}</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Interacciones</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-gray-900">{v.oportunidades}</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Oportunidades</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
 
           {/* Gráficas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -324,22 +324,14 @@ export function ReportesView() {
               ) : (
                 <div className="space-y-1">
                   {m.sinContacto.map((cliente) => (
-                    <Link
-                      key={cliente.id}
-                      href={`/clientes/${cliente.id}`}
-                      className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-blue-50/30 group transition-colors"
-                    >
+                    <Link key={cliente.id} href={`/clientes/${cliente.id}`} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-blue-50/30 group transition-colors">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-blue-700 transition-colors">
-                          {cliente.nombre}
-                        </p>
+                        <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-blue-700 transition-colors">{cliente.nombre}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{cliente.telefono ?? 'Sin teléfono'}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-3">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
-                          !cliente.ultima_interaccion
-                            ? 'bg-red-50 text-red-500 border-red-100'
-                            : 'bg-amber-50 text-amber-600 border-amber-100'
+                          !cliente.ultima_interaccion ? 'bg-red-50 text-red-500 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'
                         }`}>
                           {formatUltimoContacto(cliente.ultima_interaccion ?? null)}
                         </span>

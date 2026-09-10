@@ -3,11 +3,14 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, MessageCircle, KanbanSquare,
-  Users, Clock, BarChart3, LogOut, type LucideIcon,
+  Users, Clock, BarChart3, Calendar, LogOut, type LucideIcon,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import type { User } from '@supabase/supabase-js'
 
 const BRAND = '#1B3FA0'
 
@@ -27,9 +30,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'PRINCIPAL',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'WhatsApp',  href: '/whatsapp',  icon: MessageCircle, badge: 3 },
-      { label: 'Pipeline',  href: '/pipeline',  icon: KanbanSquare },
+      { label: 'Dashboard',  href: '/dashboard', icon: LayoutDashboard },
+      { label: 'WhatsApp',   href: '/whatsapp',  icon: MessageCircle, badge: 3 },
+      { label: 'Pipeline',   href: '/pipeline',  icon: KanbanSquare },
+      { label: 'Calendario', href: '/calendar',  icon: Calendar },
     ],
   },
   {
@@ -75,8 +79,40 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   )
 }
 
+// Extrae el nombre del email: "tanya@insumos.com" → "Tanya"
+function nombreDeEmail(email: string): string {
+  const parte = email.split('@')[0]
+  return parte.charAt(0).toUpperCase() + parte.slice(1)
+}
+
+// Iniciales para el avatar: "Tanya" → "T"
+function iniciales(nombre: string): string {
+  return nombre.charAt(0).toUpperCase()
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  const nombre = user ? nombreDeEmail(user.email ?? '') : ''
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-gray-100 bg-white">
@@ -116,12 +152,29 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="shrink-0 border-t border-gray-100 px-3 py-3">
+      {/* Footer — usuario + cerrar sesión */}
+      <div className="shrink-0 border-t border-gray-100 px-3 py-3 space-y-1">
+        {/* Usuario logueado */}
+        {user && (
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 border border-gray-100">
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+              style={{ backgroundColor: BRAND }}
+            >
+              {iniciales(nombre)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800 truncate">{nombre}</p>
+              <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Botón cerrar sesión */}
         <button
           type="button"
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
-          onClick={() => {}}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50 hover:text-red-500"
+          onClick={handleLogout}
         >
           <LogOut size={15} strokeWidth={2} />
           <span>Cerrar sesión</span>

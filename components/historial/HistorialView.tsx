@@ -107,7 +107,17 @@ function FeedItem({ interaccion, grupo }: { interaccion: InteraccionConCliente; 
           </span>
         </div>
         <p className="text-sm text-gray-600 leading-snug line-clamp-2">{interaccion.descripcion}</p>
-        <p className="text-xs text-gray-400 mt-1.5">{formatFecha(interaccion.created_at, grupo)}</p>
+        <div className="flex items-center gap-2 mt-1.5">
+          <p className="text-xs text-gray-400">{formatFecha(interaccion.created_at, grupo)}</p>
+          {interaccion.creado_por_nombre && (
+            <>
+              <span className="text-gray-200">·</span>
+              <span className="text-xs font-medium text-[#1B3FA0]">
+                {interaccion.creado_por_nombre}
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -117,15 +127,24 @@ export function HistorialView() {
   const { interacciones, loading, error, refetch } = useHistorial()
   const [tipoFiltro, setTipoFiltro] = useState<TipoInteraccion | 'todos'>('todos')
   const [busqueda, setBusqueda] = useState('')
+  const [vendedorFiltro, setVendedorFiltro] = useState<string>('todos')
+
+  const vendedores = useMemo(() => {
+    const nombres = interacciones
+      .map((i) => i.creado_por_nombre)
+      .filter((n): n is string => !!n)
+    return [...new Set(nombres)]
+  }, [interacciones])
 
   const filtradas = useMemo(() => {
     return interacciones.filter((i) => {
       const pasaTipo = tipoFiltro === 'todos' || i.tipo === tipoFiltro
+      const pasaVendedor = vendedorFiltro === 'todos' || i.creado_por_nombre === vendedorFiltro
       const q = busqueda.toLowerCase()
       const pasaBusqueda = !q || i.cliente.nombre.toLowerCase().includes(q) || i.descripcion?.toLowerCase().includes(q)
-      return pasaTipo && pasaBusqueda
+      return pasaTipo && pasaVendedor && pasaBusqueda
     })
-  }, [interacciones, tipoFiltro, busqueda])
+  }, [interacciones, tipoFiltro, busqueda, vendedorFiltro])
 
   const grupos = useMemo(() => {
     const map = new Map<GrupoKey, InteraccionConCliente[]>()
@@ -137,12 +156,10 @@ export function HistorialView() {
     return map
   }, [filtradas])
 
-  const hayFiltros = tipoFiltro !== 'todos' || busqueda !== ''
+  const hayFiltros = tipoFiltro !== 'todos' || busqueda !== '' || vendedorFiltro !== 'todos'
 
   return (
     <div className="space-y-6">
-
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Historial</h1>
@@ -156,17 +173,30 @@ export function HistorialView() {
         )}
       </div>
 
-      {/* Filtros */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente o descripción…"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 placeholder:text-gray-400 transition"
-          />
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por cliente o descripción…"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 placeholder:text-gray-400 transition"
+            />
+          </div>
+          {vendedores.length > 1 && (
+            <select
+              value={vendedorFiltro}
+              onChange={(e) => setVendedorFiltro(e.target.value)}
+              className="px-3 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 text-gray-700 transition"
+            >
+              <option value="todos">Todos</option>
+              {vendedores.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {TIPOS.map((t) => (
@@ -186,7 +216,6 @@ export function HistorialView() {
         </div>
       </div>
 
-      {/* Feed */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <LoadingSkeleton />

@@ -1,34 +1,32 @@
 // app/(dashboard)/dashboard/page.tsx
 import type { Metadata } from 'next'
 import { NotificacionesPanel } from '@/components/notificaciones/NotificacionesPanel'
-import { LayoutDashboard, Users, KanbanSquare, Clock } from 'lucide-react'
+import { LayoutDashboard, Users, KanbanSquare, Clock, Calendar } from 'lucide-react'
 import Link from 'next/link'
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
 const ACCESOS_RAPIDOS = [
-  { label: 'Clientes',  href: '/clientes',  icon: Users,           desc: 'Ver y gestionar clientes',       iconBg: 'bg-blue-50',    iconColor: 'text-blue-600' },
-  { label: 'Pipeline',  href: '/pipeline',  icon: KanbanSquare,    desc: 'Tablero de oportunidades',       iconBg: 'bg-violet-50',  iconColor: 'text-violet-600' },
-  { label: 'Historial', href: '/historial', icon: Clock,           desc: 'Registro de interacciones',      iconBg: 'bg-amber-50',   iconColor: 'text-amber-600' },
-  { label: 'Reportes',  href: '/reportes',  icon: LayoutDashboard, desc: 'Métricas y estadísticas',        iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+  { label: 'Clientes',   href: '/clientes',  icon: Users,           desc: 'Ver y gestionar clientes',  iconBg: 'bg-blue-50',    iconColor: 'text-blue-600' },
+  { label: 'Pipeline',   href: '/pipeline',  icon: KanbanSquare,    desc: 'Tablero de oportunidades',  iconBg: 'bg-violet-50',  iconColor: 'text-violet-600' },
+  { label: 'Historial',  href: '/historial', icon: Clock,           desc: 'Registro de interacciones', iconBg: 'bg-amber-50',   iconColor: 'text-amber-600' },
+  { label: 'Reportes',   href: '/reportes',  icon: LayoutDashboard, desc: 'Métricas y estadísticas',   iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+  { label: 'Calendario', href: '/calendar',  icon: Calendar,        desc: 'Seguimientos programados',  iconBg: 'bg-pink-50',    iconColor: 'text-pink-600' },
 ]
 
 export default function DashboardPage() {
   return (
     <div className="space-y-8">
 
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Bienvenido al CRM de Insumos Roller</p>
-        </div>
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Bienvenido al CRM de Insumos Roller</p>
       </div>
 
-      {/* Accesos rápidos */}
       <div>
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Accesos rápidos</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {ACCESOS_RAPIDOS.map((item) => {
             const Icon = item.icon
             return (
@@ -48,10 +46,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Notificaciones */}
-      <div>
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Notificaciones del navegador</p>
-        <div className="max-w-lg">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Actividad reciente</p>
+          <ActivityFeed />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Notificaciones del navegador</p>
           <NotificacionesPanel />
         </div>
       </div>

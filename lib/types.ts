@@ -40,6 +40,7 @@ export interface Cliente {
   canal_entrada: CanalEntrada
   created_at: string
   ultima_interaccion: string | null
+  creado_por: string | null
 }
 
 export interface Oportunidad {
@@ -49,6 +50,8 @@ export interface Oportunidad {
   monto: number | null
   detalle_cotizacion: string | null
   created_at: string
+  creado_por: string | null
+  creado_por_nombre: string | null
 }
 
 export interface Interaccion {
@@ -57,6 +60,8 @@ export interface Interaccion {
   tipo: TipoInteraccion
   descripcion: string
   created_at: string
+  creado_por: string | null
+  creado_por_nombre: string | null
 }
 
 // ─── Tipos de UI / helpers ─────────────────────────────────────────────────

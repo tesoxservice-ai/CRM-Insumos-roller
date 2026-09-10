@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ChevronDown, MoveRight } from 'lucide-react'
+import { ChevronDown, MoveRight, User } from 'lucide-react'
 import type { CanalEntrada, EstadoPipeline, Oportunidad, Cliente } from '@/lib/types'
 
 export interface OportunidadConCliente extends Oportunidad {
@@ -31,18 +31,12 @@ const CANAL_BADGE: Record<CanalEntrada, { label: string; classes: string }> = {
 
 function formatMonto(monto: number): string {
   return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
+    style: 'currency', currency: 'ARS', maximumFractionDigits: 0,
   }).format(monto)
 }
 
 function formatFecha(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-  })
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
 export default function OportunidadCard({ oportunidad, onMover }: OportunidadCardProps) {
@@ -57,10 +51,7 @@ export default function OportunidadCard({ oportunidad, onMover }: OportunidadCar
   function handleToggle() {
     if (!dropdownAbierto && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      setDropdownPos({
-        top: rect.bottom + window.scrollY + 4,
-        right: window.innerWidth - rect.right,
-      })
+      setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right })
     }
     setDropdownAbierto((v) => !v)
   }
@@ -86,8 +77,8 @@ export default function OportunidadCard({ oportunidad, onMover }: OportunidadCar
     onMover(oportunidad.id, nuevoEstado)
   }
 
-  return (<div className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-gray-300">
-    
+  return (
+    <div className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-gray-300">
 
       {/* Nombre + canal */}
       <div className="mb-3 flex items-start justify-between gap-2">
@@ -117,15 +108,29 @@ export default function OportunidadCard({ oportunidad, onMover }: OportunidadCar
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100">
-        <span className="text-[11px] text-gray-400 font-medium">
-          {formatFecha(oportunidad.created_at)}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] text-gray-400 font-medium shrink-0">
+            {formatFecha(oportunidad.created_at)}
+          </span>
+          {/* Autor */}
+          {oportunidad.creado_por_nombre && (
+            <>
+              <span className="text-gray-200 shrink-0">·</span>
+              <div className="flex items-center gap-1 min-w-0">
+                <User size={10} className="text-[#1B3FA0] shrink-0" />
+                <span className="text-[11px] font-medium text-[#1B3FA0] truncate">
+                  {oportunidad.creado_por_nombre}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           ref={btnRef}
           type="button"
           onClick={handleToggle}
-          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 transition-all"
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 transition-all shrink-0"
         >
           Mover a
           <ChevronDown size={11} className={`transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />

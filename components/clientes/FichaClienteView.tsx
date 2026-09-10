@@ -1,7 +1,7 @@
 // components/clientes/FichaClienteView.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Phone, Edit, RefreshCw,
@@ -12,6 +12,8 @@ import { useCliente } from '@/lib/supabase/hooks'
 import { createInteraccion } from '@/lib/supabase/queries'
 import EditarClienteModal from './EditarClienteModal'
 import ClienteAvatar from './ClienteAvatar'
+import { ChipSeguimiento } from '@/components/interacciones/ChipSeguimiento'
+import { detectarSeguimiento, type SeguimientoDetectado } from '@/lib/utils/detectarSeguimiento'
 import type { CanalEntrada, EstadoCliente, EstadoPipeline, Interaccion, Oportunidad, TipoInteraccion } from '@/lib/types'
 
 const BRAND = '#1B3FA0'
@@ -105,25 +107,93 @@ function CardOportunidades({ oportunidades }: { oportunidades: Oportunidad[] }) 
   )
 }
 
-function CardHistorial({ interacciones, clienteId, onNuevaInteraccion }: { interacciones: Interaccion[]; clienteId: string; onNuevaInteraccion: () => void }) {
-  const [modalEdicion, setModalEdicion] = useState(false)
+// ── CardHistorial — ahora con detección de seguimiento ───────────────────────
+function CardHistorial({
+  interacciones,
+  clienteId,
+  clienteNombre,
+  onNuevaInteraccion,
+}: {
+  interacciones: Interaccion[]
+  clienteId: string
+  clienteNombre: string
+  onNuevaInteraccion: () => void
+}) {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [tipo, setTipo] = useState<TipoInteraccion>('nota')
   const [descripcion, setDescripcion] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Estado del chip de seguimiento
+  const [seguimientoDetectado, setSeguimientoDetectado] = useState<SeguimientoDetectado | null>(null)
+  const [seguimientoConfirmado, setSeguimientoConfirmado] = useState<{ fecha: Date; descripcion: string } | null>(null)
+  const [ignorarSeguimiento, setIgnorarSeguimiento] = useState(false)
+
+  // Detectar fecha en el texto mientras el vendedor escribe
+  useEffect(() => {
+    if (ignorarSeguimiento || !descripcion.trim()) {
+      setSeguimientoDetectado(null)
+      return
+    }
+    const timer = setTimeout(() => {
+      const detectado = detectarSeguimiento(descripcion)
+      setSeguimientoDetectado(detectado)
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [descripcion, ignorarSeguimiento])
+
+  function resetForm() {
+    setDescripcion('')
+    setTipo('nota')
+    setMostrarForm(false)
+    setError(null)
+    setSeguimientoDetectado(null)
+    setSeguimientoConfirmado(null)
+    setIgnorarSeguimiento(false)
+  }
+
   async function handleGuardar(e: React.FormEvent) {
     e.preventDefault()
     if (!descripcion.trim()) return
     setLoading(true)
     setError(null)
-    const { error: err } = await createInteraccion({ cliente_id: clienteId, tipo, descripcion: descripcion.trim() })
+
+    // 1. Guardar interacción en Supabase (igual que antes)
+    const { error: err } = await createInteraccion({
+      cliente_id: clienteId,
+      tipo,
+      descripcion: descripcion.trim(),
+    })
+
+    if (err) {
+      setLoading(false)
+      setError(err.message)
+      return
+    }
+
+    // 2. Si el vendedor confirmó un seguimiento → crear evento en Google Calendar
+    if (seguimientoConfirmado) {
+      try {
+        await fetch('/api/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titulo: seguimientoConfirmado.descripcion,
+            descripcion: descripcion.trim(),
+            fecha: seguimientoConfirmado.fecha.toISOString(),
+            clienteId,
+            clienteNombre,
+          }),
+        })
+      } catch (calendarErr) {
+        // No bloqueamos el guardado si falla Calendar
+        console.error('[Calendar] Error creando evento:', calendarErr)
+      }
+    }
+
     setLoading(false)
-    if (err) { setError(err.message); return }
-    setDescripcion('')
-    setTipo('nota')
-    setMostrarForm(false)
+    resetForm()
     onNuevaInteraccion()
   }
 
@@ -147,16 +217,57 @@ function CardHistorial({ interacciones, clienteId, onNuevaInteraccion }: { inter
       <div className="px-6 py-4 space-y-4">
         {mostrarForm && (
           <form onSubmit={handleGuardar} className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 space-y-3">
-            <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoInteraccion)} className={inputClass}>
-              {TIPO_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoInteraccion)}
+              className={inputClass}
+            >
+              {TIPO_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
-            <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripción de la interacción…" rows={2} required className={`${inputClass} resize-none`} />
+
+            <textarea
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="¿Qué pasó en esta interacción?"
+              rows={3}
+              required
+              className={`${inputClass} resize-none`}
+            />
+
+            {/* Chip de seguimiento — aparece solo si se detecta una fecha */}
+            {seguimientoDetectado && !ignorarSeguimiento && !seguimientoConfirmado && (
+              <ChipSeguimiento
+                fecha={seguimientoDetectado.fecha}
+                descripcion={seguimientoDetectado.descripcion}
+                onConfirmar={(fecha, desc) => {
+                  setSeguimientoConfirmado({ fecha, descripcion: desc })
+                  setSeguimientoDetectado(null)
+                }}
+                onIgnorar={() => {
+                  setIgnorarSeguimiento(true)
+                  setSeguimientoDetectado(null)
+                }}
+              />
+            )}
+
             {error && <p className="text-xs text-red-500">{error}</p>}
+
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => { setMostrarForm(false); setError(null); setDescripcion('') }} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+              >
                 Cancelar
               </button>
-              <button type="submit" disabled={loading || !descripcion.trim()} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all" style={{ backgroundColor: BRAND }}>
+              <button
+                type="submit"
+                disabled={loading || !descripcion.trim()}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                style={{ backgroundColor: BRAND }}
+              >
                 {loading && <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
                 Guardar
               </button>
@@ -183,7 +294,15 @@ function CardHistorial({ interacciones, clienteId, onNuevaInteraccion }: { inter
                   </div>
                   <div className="flex-1 min-w-0 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
                     <p className="text-sm text-gray-700 leading-snug">{inter.descripcion}</p>
-                    <p className="mt-1 text-[11px] text-gray-400">{formatFecha(inter.created_at)}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[11px] text-gray-400">{formatFecha(inter.created_at)}</p>
+                      {inter.creado_por_nombre && (
+                        <>
+                          <span className="text-gray-200">·</span>
+                          <span className="text-[11px] font-medium text-[#1B3FA0]">{inter.creado_por_nombre}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </li>
               )
@@ -295,7 +414,13 @@ export default function FichaClienteView({ id }: { id: string }) {
           <CardOportunidades oportunidades={cliente.oportunidades} />
         </div>
 
-        <CardHistorial interacciones={cliente.interacciones} clienteId={cliente.id} onNuevaInteraccion={refetch} />
+        {/* Pasamos clienteNombre para que el evento en Calendar tenga el nombre del cliente */}
+        <CardHistorial
+          interacciones={cliente.interacciones}
+          clienteId={cliente.id}
+          clienteNombre={cliente.nombre}
+          onNuevaInteraccion={refetch}
+        />
       </div>
 
       {modalEdicion && (
