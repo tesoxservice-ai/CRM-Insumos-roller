@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   if (!esBodyValido(body)) return respError('Body mal formado', 400)
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     let clienteId: string

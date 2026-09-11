@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const monto = pago.transaction_amount
     const descripcionPago = pago.description ?? 'Compra en Insumos Roller'
 
-    const supabase = createClient()
+    const supabase = await createClient()
     let clienteId: string
 
     if (telefono) {

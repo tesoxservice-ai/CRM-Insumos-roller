@@ -53,7 +53,17 @@ export function ActivityFeed() {
         .order('created_at', { ascending: false })
         .limit(10)
 
-      setItems((data as ActividadItem[]) ?? [])
+      if (data) {
+        const items: ActividadItem[] = data.map((row: Record<string, unknown>) => ({
+          id: row.id as string,
+          tipo: row.tipo as TipoInteraccion,
+          descripcion: row.descripcion as string,
+          created_at: row.created_at as string,
+          creado_por_nombre: row.creado_por_nombre as string | null,
+          cliente: Array.isArray(row.cliente) ? row.cliente[0] : row.cliente as { id: string; nombre: string },
+        }))
+        setItems(items)
+      }
       setLoading(false)
     }
     cargar()
@@ -99,10 +109,7 @@ export function ActivityFeed() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <Link
-                    href={`/clientes/${item.cliente.id}`}
-                    className="text-sm font-semibold text-gray-800 hover:text-blue-700 transition-colors"
-                  >
+                  <Link href={`/clientes/${item.cliente.id}`} className="text-sm font-semibold text-gray-800 hover:text-blue-700 transition-colors">
                     {item.cliente.nombre}
                   </Link>
                   <span className="text-xs text-gray-400">{TIPO_LABEL[item.tipo]}</span>
