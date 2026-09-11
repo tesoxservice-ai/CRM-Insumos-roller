@@ -1,19 +1,19 @@
 // app/api/webhooks/cotizacion/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
-
-// ── Tipos del body entrante ───────────────────────────────────────────────────
+import { createClient } from '@/lib/supabase/server'
 
 interface CotizacionWebhookBody {
-  telefono: string | null
-  nombre: string | null
+  email_cliente: string
+  precio_estimado: number
   detalle: string
-  monto: number
-  secret: string
+  sistema?: string
+  con_instalacion?: boolean
+  items?: unknown[]
+  created_at?: string
+  nombre?: string | null
+  telefono?: string | null
 }
-
-// ── Helpers internos ──────────────────────────────────────────────────────────
 
 function respError(message: string, status: number) {
   return NextResponse.json({ ok: false, error: message }, { status })
@@ -22,18 +22,16 @@ function respError(message: string, status: number) {
 function esBodyValido(body: unknown): body is CotizacionWebhookBody {
   if (typeof body !== 'object' || body === null) return false
   const b = body as Record<string, unknown>
-  return (
-    typeof b.detalle === 'string' &&
-    typeof b.monto === 'number' &&
-    typeof b.secret === 'string'
-  )
+  return typeof b.detalle === 'string' && typeof b.precio_estimado === 'number'
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
-
 export async function POST(req: NextRequest) {
-  let body: unknown
+  const secret = req.headers.get('x-webhook-secret')
+  if (!secret || secret !== process.env.WEBHOOK_SECRET) {
+    return NextResponse.json({ ok: false }, { status: 401 })
+  }
 
+  let body: unknown
   try {
     body = await req.json()
   } catch {
@@ -42,49 +40,27 @@ export async function POST(req: NextRequest) {
 
   if (!esBodyValido(body)) return respError('Body mal formado', 400)
 
-  // 1. Validar secret
-  if (body.secret !== process.env.WEBHOOK_SECRET) {
-    return NextResponse.json({ ok: false }, { status: 401 })
-  }
-
-  const supabase = createServerClient()
+  const supabase = createClient()
 
   try {
-    // 2 & 3. Buscar o crear cliente
     let clienteId: string
 
-    if (body.telefono) {
-      const { data: existente } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('telefono', body.telefono)
-        .maybeSingle()
+    const nombreCliente = body.nombre?.trim() || body.email_cliente || 'Sin identificar'
 
-      if (existente) {
-        clienteId = existente.id as string
-      } else {
-        const { data: nuevo, error: errCliente } = await supabase
-          .from('clientes')
-          .insert({
-            nombre: body.nombre?.trim() || 'Sin identificar',
-            telefono: body.telefono,
-            canal_entrada: 'configurador',
-            estado: 'potencial',
-          })
-          .select('id')
-          .single()
+    const { data: existentePorEmail } = await supabase
+      .from('clientes')
+      .select('id')
+      .ilike('nombre', `%${body.email_cliente}%`)
+      .maybeSingle()
 
-        if (errCliente || !nuevo) {
-          return respError('Error al crear cliente', 500)
-        }
-        clienteId = nuevo.id as string
-      }
+    if (existentePorEmail) {
+      clienteId = existentePorEmail.id as string
     } else {
       const { data: nuevo, error: errCliente } = await supabase
         .from('clientes')
         .insert({
-          nombre: body.nombre?.trim() || 'Sin identificar',
-          telefono: null,
+          nombre: nombreCliente,
+          telefono: body.telefono ?? null,
           canal_entrada: 'configurador',
           estado: 'potencial',
         })
@@ -92,39 +68,41 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (errCliente || !nuevo) {
+        console.error('[webhook/cotizacion] Error creando cliente:', errCliente)
         return respError('Error al crear cliente', 500)
       }
       clienteId = nuevo.id as string
     }
 
-    // 4. Crear oportunidad
+    const detalleCompleto = [
+      body.detalle,
+      body.sistema ? `Sistema: ${body.sistema}` : null,
+      body.con_instalacion ? 'Con instalación' : 'Sin instalación',
+    ].filter(Boolean).join(' · ')
+
     const { data: oportunidad, error: errOp } = await supabase
       .from('oportunidades')
       .insert({
         cliente_id: clienteId,
         estado_pipeline: 'consulta',
-        detalle_cotizacion: body.detalle,
-        monto: body.monto,
+        detalle_cotizacion: detalleCompleto,
+        monto: body.precio_estimado,
       })
       .select('id')
       .single()
 
     if (errOp || !oportunidad) {
+      console.error('[webhook/cotizacion] Error creando oportunidad:', errOp)
       return respError('Error al crear oportunidad', 500)
     }
 
-    // 5. Registrar interacción (fire-and-forget — no bloquea la respuesta)
     void supabase.from('interacciones').insert({
       cliente_id: clienteId,
       tipo: 'nota',
-      descripcion: 'Cotización generada desde el configurador online',
+      descripcion: `Cotización generada desde el configurador online — ${body.detalle} — $${body.precio_estimado?.toLocaleString('es-AR')}`,
     })
 
-    // 6. Respuesta
-    return NextResponse.json(
-      { ok: true, clienteId, oportunidadId: oportunidad.id },
-      { status: 200 }
-    )
+    return NextResponse.json({ ok: true, clienteId, oportunidadId: oportunidad.id }, { status: 200 })
   } catch (err) {
     console.error('[webhook/cotizacion]', err)
     return respError('Error interno del servidor', 500)
