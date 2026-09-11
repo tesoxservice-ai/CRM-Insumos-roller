@@ -1,7 +1,7 @@
 // app/api/webhooks/mercadopago/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { getOportunidadAbiertaByCliente } from '@/lib/supabase/queries'
 
 interface MercadoPagoWebhookBody {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const monto = pago.transaction_amount
     const descripcionPago = pago.description ?? 'Compra en Insumos Roller'
 
-    const supabase = await createClient()
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     let clienteId: string
 
     if (telefono) {

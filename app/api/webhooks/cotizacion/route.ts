@@ -1,7 +1,7 @@
 // app/api/webhooks/cotizacion/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 interface CotizacionWebhookBody {
   email_cliente: string
@@ -40,7 +40,11 @@ export async function POST(req: NextRequest) {
 
   if (!esBodyValido(body)) return respError('Body mal formado', 400)
 
-  const supabase = await createClient()
+  // Usar service role key para bypassear RLS
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   try {
     let clienteId: string
