@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Download, Plus, ChevronRight, RefreshCw, Users } from 'lucide-react'
 import { useClientes } from '@/lib/supabase/hooks'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import ClienteAvatar from './ClienteAvatar'
 import NuevoClienteModal from './NuevoClienteModal'
 import type { Cliente, CanalEntrada, EstadoCliente } from '@/lib/types'
@@ -99,8 +100,41 @@ function ClienteRow({ cliente, onClick }: { cliente: Cliente; onClick: () => voi
   )
 }
 
+function ClienteCardMobile({ cliente, onClick }: { cliente: Cliente; onClick: () => void }) {
+  const displayName = cliente.nombre ?? cliente.telefono ?? 'Sin nombre'
+  const estadoBadge = ESTADO_BADGE[cliente.estado]
+  const canalBadge = CANAL_BADGE[cliente.canal_entrada]
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-4 active:bg-gray-50 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <ClienteAvatar nombre={displayName} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
+          {cliente.telefono && <p className="text-xs text-gray-400 mt-0.5">{cliente.telefono}</p>}
+        </div>
+        <ChevronRight size={16} className="text-gray-300 shrink-0" />
+      </div>
+      <div className="flex items-center flex-wrap gap-2 mt-3">
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoBadge.classes}`}>
+          {estadoBadge.label}
+        </span>
+        <span className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-medium ${canalBadge.classes}`}>
+          {canalBadge.label}
+        </span>
+        <span className="text-xs text-gray-400 ml-auto">{formatUltimoContacto(cliente.ultima_interaccion)}</span>
+      </div>
+    </button>
+  )
+}
+
 export default function ClientesView() {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const { clientes, loading, error, refetch } = useClientes()
   const [busqueda, setBusqueda] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)

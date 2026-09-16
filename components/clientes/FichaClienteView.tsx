@@ -373,6 +373,15 @@ export default function FichaClienteView({ id }: { id: string }) {
                 <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
                   <Phone size={13} className="text-gray-400" />
                   {cliente.telefono}
+                  <a
+                    href={`https://wa.me/${cliente.telefono.replace('+', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-full p-1 hover:bg-gray-100 transition-colors"
+                    aria-label="Abrir WhatsApp"
+                  >
+                    <MessageCircle size={14} style={{ color: '#25D366' }} />
+                  </a>
                 </span>
               )}
               <span className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-medium ${canalBadge.classes}`}>

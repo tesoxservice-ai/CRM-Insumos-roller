@@ -30,6 +30,18 @@ export type TipoInteraccion =
   | 'reunion'
   | 'nota'
 
+export type TipoMovimientoCaja = 'ingreso' | 'egreso'
+
+export type CategoriaMovimientoCaja =
+  | 'seña'
+  | 'pago_final'
+  | 'pago_total'
+  | 'otro_ingreso'
+  | 'proveedor'
+  | 'retiro_personal'
+  | 'gasto_operativo'
+  | 'otro_egreso'
+
 // ─── Entidades principales ─────────────────────────────────────────────────
 
 export interface Cliente {
@@ -62,6 +74,21 @@ export interface Interaccion {
   created_at: string
   creado_por: string | null
   creado_por_nombre: string | null
+}
+
+export interface MovimientoCaja {
+  id: string
+  tipo: TipoMovimientoCaja
+  categoria: CategoriaMovimientoCaja
+  monto: number
+  descripcion: string | null
+  proveedor: string | null
+  cliente_id: string | null
+  oportunidad_id: string | null
+  fecha: string
+  creado_por: string | null
+  creado_por_nombre: string | null
+  created_at: string
 }
 
 // ─── Tipos de UI / helpers ─────────────────────────────────────────────────

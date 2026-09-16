@@ -7,6 +7,7 @@ import type {
   EstadoCliente,
   EstadoPipeline,
   Interaccion,
+  MovimientoCaja,
   Oportunidad,
   TipoInteraccion,
 } from '@/lib/types'
@@ -303,4 +304,54 @@ export async function getOportunidadAbiertaByCliente(clienteId: string): Promise
 
   if (error) return { data: null, error: error.message }
   return { data: data as Oportunidad | null, error: null }
+}
+
+// ============================================================
+// CAJA
+// ============================================================
+
+export type MovimientoCajaConRelaciones = MovimientoCaja & {
+  cliente: Cliente | null
+  oportunidad: Oportunidad | null
+}
+
+export async function getMovimientosCaja(): Promise<{
+  data: MovimientoCajaConRelaciones[] | null
+  error: string | null
+}> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('movimientos_caja')
+    .select(`*, cliente:clientes ( * ), oportunidad:oportunidades ( * )`)
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) return { data: null, error: error.message }
+  return { data: data as MovimientoCajaConRelaciones[], error: null }
+}
+
+export async function createMovimientoCaja(
+  data: Partial<Omit<MovimientoCaja, 'id' | 'created_at' | 'creado_por' | 'creado_por_nombre'>>
+): QueryResult<MovimientoCaja> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const userId = user?.id ?? null
+  const nombre = user?.email
+    ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1)
+    : null
+
+  const { data: row, error } = await supabase
+    .from('movimientos_caja')
+    .insert({ ...data, creado_por: userId, creado_por_nombre: nombre })
+    .select()
+    .single()
+
+  return { data: row ?? null, error: toError(error) }
+}
+
+export async function deleteMovimientoCaja(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('movimientos_caja').delete().eq('id', id)
+  return { error: error?.message ?? null }
 }
