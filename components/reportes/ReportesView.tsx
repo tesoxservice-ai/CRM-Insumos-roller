@@ -228,32 +228,32 @@ export function ReportesView() {
           </div>
 
           {/* Resumen */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={18} className="text-emerald-500" />
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-2 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 text-center sm:text-left">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={16} className="text-emerald-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{m.ganadas}</p>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ganadas</p>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                <XCircle size={18} className="text-red-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{m.perdidas}</p>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Perdidas</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{m.ganadas}</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">Ganadas</p>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <Clock size={18} className="text-blue-500" />
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-2 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 text-center sm:text-left">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                <XCircle size={16} className="text-red-400" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{m.abiertasCount}</p>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">En curso</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{m.perdidas}</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">Perdidas</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-2 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 text-center sm:text-left">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <Clock size={16} className="text-blue-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{m.abiertasCount}</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">En curso</p>
               </div>
             </div>
           </div>
@@ -263,14 +263,14 @@ export function ReportesView() {
             <SectionCard title="Actividad por vendedor" subtitle="Interacciones y oportunidades creadas por cada uno">
               <div className="space-y-3">
                 {m.vendedores.map((v) => (
-                  <div key={v.nombre} className="flex items-center gap-4 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: BRAND }}>
-                      {v.nombre.charAt(0).toUpperCase()}
+                  <div key={v.nombre} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="flex items-center gap-3 min-w-0 sm:flex-1">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: BRAND }}>
+                        {v.nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-800 truncate min-w-0">{v.nombre}</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800">{v.nombre}</p>
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-4 shrink-0 pl-11 sm:pl-0">
                       <div className="text-center">
                         <p className="text-lg font-bold text-gray-900">{v.interacciones}</p>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide">Interacciones</p>

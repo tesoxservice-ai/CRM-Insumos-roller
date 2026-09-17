@@ -34,9 +34,9 @@ const COLUMNAS: ColConfig[] = [
   { id: 'perdido',            label: 'Perdido',            accent: '#EF4444', headerText: 'text-red-600',     bg: 'bg-red-50/40',      emptyIcon: X     },
 ]
 
-function MetricCard({ icon: Icon, label, value, sub, iconBg, iconColor }: { icon: React.ElementType; label: string; value: string; sub: string; iconBg: string; iconColor: string }) {
+function MetricCard({ icon: Icon, label, value, sub, iconBg, iconColor, compact }: { icon: React.ElementType; label: string; value: string; sub: string; iconBg: string; iconColor: string; compact?: boolean }) {
   return (
-    <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <div className={`${compact ? 'shrink-0 w-[190px]' : 'flex-1 min-w-0'} bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4`}>
       <div className="flex items-center gap-3">
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
           <Icon size={16} strokeWidth={2} className={iconColor} />
@@ -293,11 +293,11 @@ export default function PipelineView() {
 
       {/* Métricas */}
       {!loading && !fetchError && (
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
-          <MetricCard icon={TrendingUp} label="Total de oportunidades" value={String(metricas.total)} sub={`${metricas.ganadas} ganadas · ${metricas.perdidas} perdidas`} iconBg="bg-blue-50" iconColor="text-blue-600" />
-          <MetricCard icon={DollarSign} label="Ventas estimadas" value={formatMonto(metricas.valorPipeline)} sub="oportunidades activas" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
-          <MetricCard icon={Users} label="Clientes activos" value={String(metricas.clientesUnicos)} sub="en el pipeline" iconBg="bg-violet-50" iconColor="text-violet-600" />
-          <MetricCard icon={Inbox} label="Pedidos en proceso" value={String(tablero.negociacion.length + tablero.cotizacion_enviada.length)} sub="cotización + negociación" iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <div className={`flex gap-3 mb-6 overflow-x-auto pb-1 ${isMobile ? '-mx-3 px-3' : ''}`}>
+          <MetricCard compact={isMobile} icon={TrendingUp} label="Total de oportunidades" value={String(metricas.total)} sub={`${metricas.ganadas} ganadas · ${metricas.perdidas} perdidas`} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <MetricCard compact={isMobile} icon={DollarSign} label="Ventas estimadas" value={formatMonto(metricas.valorPipeline)} sub="oportunidades activas" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+          <MetricCard compact={isMobile} icon={Users} label="Clientes activos" value={String(metricas.clientesUnicos)} sub="en el pipeline" iconBg="bg-violet-50" iconColor="text-violet-600" />
+          <MetricCard compact={isMobile} icon={Inbox} label="Pedidos en proceso" value={String(tablero.negociacion.length + tablero.cotizacion_enviada.length)} sub="cotización + negociación" iconBg="bg-amber-50" iconColor="text-amber-600" />
         </div>
       )}
 
