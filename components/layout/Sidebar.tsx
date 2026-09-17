@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  LayoutDashboard, KanbanSquare, Wallet, MoreHorizontal,
+  LayoutDashboard, KanbanSquare, Wallet, MoreHorizontal, Calculator,
   Users, Clock, BarChart3, Calendar, LogOut, X, Trash2, type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +34,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Dashboard',  href: '/dashboard', icon: LayoutDashboard },
       { label: 'Caja',       href: '/caja',      icon: Wallet },
       { label: 'Pipeline',   href: '/pipeline',  icon: KanbanSquare },
+      { label: 'Cotizador',  href: '/cotizador', icon: Calculator },
       { label: 'Calendario', href: '/calendar',  icon: Calendar },
     ],
   },
@@ -62,6 +63,7 @@ const MOBILE_TABS: NavItem[] = [
 ]
 
 const MOBILE_MAS_ITEMS: NavItem[] = [
+  { label: 'Cotizador',  href: '/cotizador', icon: Calculator },
   { label: 'Historial',  href: '/historial', icon: Clock },
   { label: 'Reportes',   href: '/reportes',  icon: BarChart3 },
   { label: 'Calendario', href: '/calendar',  icon: Calendar },

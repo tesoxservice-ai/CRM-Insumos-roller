@@ -36,3 +36,6 @@ next-env.d.ts
 .DS_Store
 .idea/
 .vscode/
+
+# proyecto aparte copiado para estudiarlo — no es parte de este repo
+Cotizador-insumos-roller/

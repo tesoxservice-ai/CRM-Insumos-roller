@@ -5,7 +5,6 @@ import { LayoutDashboard, Users, KanbanSquare, Clock, Calendar } from 'lucide-re
 import Link from 'next/link'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { CajaResumenWidget } from '@/components/dashboard/CajaResumenWidget'
-import { NotificacionesPanel } from '@/components/notificaciones/NotificacionesPanel'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 const ACCESOS_RAPIDOS = [
@@ -51,15 +50,9 @@ export function DashboardView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        <div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Actividad reciente</p>
-          <ActivityFeed />
-        </div>
-        <div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Notificaciones del navegador</p>
-          <NotificacionesPanel />
-        </div>
+      <div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Actividad reciente</p>
+        <ActivityFeed />
       </div>
 
     </div>
