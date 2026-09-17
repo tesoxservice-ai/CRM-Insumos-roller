@@ -23,11 +23,12 @@ function formatUltimoContacto(fecha: string | null): string {
 }
 
 const ESTADO_BADGE: Record<EstadoCliente, { label: string; classes: string }> = {
-  potencial:      { label: 'Potencial',      classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
-  en_seguimiento: { label: 'En seguimiento', classes: 'bg-amber-50 text-amber-700 border border-amber-100' },
-  activo:         { label: 'Activo',         classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
-  inactivo:       { label: 'Inactivo',       classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
-  sin_ficha:      { label: 'Sin ficha',      classes: 'bg-white text-gray-400 border border-dashed border-gray-300' },
+  potencial:            { label: 'Potencial',            classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
+  visita_agendada:      { label: 'Visita agendada',      classes: 'bg-violet-50 text-violet-700 border border-violet-100' },
+  seguimiento:          { label: 'Seguimiento',          classes: 'bg-amber-50 text-amber-700 border border-amber-100' },
+  no_enviaron_medidas:  { label: 'No enviaron medidas',  classes: 'bg-red-50 text-red-600 border border-red-100' },
+  cliente:              { label: 'Cliente',              classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
+  inactivo:             { label: 'Inactivo',             classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
 }
 
 const CANAL_BADGE: Record<CanalEntrada, { label: string; classes: string }> = {
@@ -35,6 +36,7 @@ const CANAL_BADGE: Record<CanalEntrada, { label: string; classes: string }> = {
   configurador: { label: '📋 Configurador', classes: 'bg-orange-50 text-orange-700 border border-orange-100' },
   mercadopago:  { label: '💳 MercadoPago',  classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
   manual:       { label: 'Manual',          classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
+  pauta:        { label: '📣 Pauta',        classes: 'bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-100' },
 }
 
 function TableSkeleton() {
@@ -88,6 +90,9 @@ function ClienteRow({ cliente, onClick }: { cliente: Cliente; onClick: () => voi
         </span>
       </td>
       <td className="px-4 py-4 text-sm text-gray-500">
+        {cliente.vendedor_nombre ?? <span className="text-gray-300">Sin asignar</span>}
+      </td>
+      <td className="px-4 py-4 text-sm text-gray-500">
         {formatUltimoContacto(cliente.ultima_interaccion)}
       </td>
       <td className="px-4 py-4">
@@ -126,6 +131,9 @@ function ClienteCardMobile({ cliente, onClick }: { cliente: Cliente; onClick: ()
         <span className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-medium ${canalBadge.classes}`}>
           {canalBadge.label}
         </span>
+        {cliente.vendedor_nombre && (
+          <span className="text-xs text-gray-400">· {cliente.vendedor_nombre}</span>
+        )}
         <span className="text-xs text-gray-400 ml-auto">{formatUltimoContacto(cliente.ultima_interaccion)}</span>
       </div>
     </button>
@@ -137,20 +145,27 @@ export default function ClientesView() {
   const isMobile = useIsMobile()
   const { clientes, loading, error, refetch } = useClientes()
   const [busqueda, setBusqueda] = useState('')
+  const [vendedorFiltro, setVendedorFiltro] = useState('todos')
   const [modalAbierto, setModalAbierto] = useState(false)
+
+  const vendedoresConClientes = useMemo(() => {
+    const nombres = clientes.map((c) => c.vendedor_nombre).filter((n): n is string => !!n)
+    return [...new Set(nombres)].sort()
+  }, [clientes])
 
   const clientesFiltrados = useMemo(() => {
     const q = busqueda.toLowerCase().trim()
-    if (!q) return clientes
-    return clientes.filter(
-      (c) => c.nombre.toLowerCase().includes(q) || (c.telefono ?? '').includes(q)
-    )
-  }, [clientes, busqueda])
+    return clientes.filter((c) => {
+      const pasaBusqueda = !q || c.nombre.toLowerCase().includes(q) || (c.telefono ?? '').includes(q)
+      const pasaVendedor = vendedorFiltro === 'todos' || c.vendedor_nombre === vendedorFiltro
+      return pasaBusqueda && pasaVendedor
+    })
+  }, [clientes, busqueda, vendedorFiltro])
 
   // Métricas
   const metricas = useMemo(() => ({
     total: clientes.length,
-    activos: clientes.filter(c => c.estado === 'activo').length,
+    clientes: clientes.filter(c => c.estado === 'cliente').length,
     potenciales: clientes.filter(c => c.estado === 'potencial').length,
     inactivos: clientes.filter(c => c.estado === 'inactivo').length,
   }), [clientes])
@@ -207,7 +222,7 @@ export default function ClientesView() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total clientes', value: metricas.total, sub: 'en el sistema', iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
-          { label: 'Activos', value: metricas.activos, sub: 'compraron al menos una vez', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+          { label: 'Clientes', value: metricas.clientes, sub: 'convirtieron la venta', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
           { label: 'Potenciales', value: metricas.potenciales, sub: 'en seguimiento comercial', iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
           { label: 'Inactivos', value: metricas.inactivos, sub: 'sin contacto reciente', iconBg: 'bg-gray-50', iconColor: 'text-gray-400' },
         ].map((m) => (
@@ -227,15 +242,27 @@ export default function ClientesView() {
       </div>
 
       {/* Buscador */}
-      <div className="relative mb-4 max-w-sm">
-        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre o teléfono…"
-          className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-colors shadow-sm"
-        />
+      <div className="flex flex-wrap gap-3 mb-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre o teléfono…"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-colors shadow-sm"
+          />
+        </div>
+        {vendedoresConClientes.length > 0 && (
+          <select
+            value={vendedorFiltro}
+            onChange={(e) => setVendedorFiltro(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-colors shadow-sm"
+          >
+            <option value="todos">Todos los vendedores</option>
+            {vendedoresConClientes.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Tabla */}
@@ -273,6 +300,7 @@ export default function ClientesView() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Cliente</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Estado</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Canal</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Vendedor</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Último contacto</th>
                   <th className="px-4 py-3" />
                 </tr>

@@ -27,6 +27,7 @@ const CANAL_BADGE: Record<CanalEntrada, { label: string; classes: string }> = {
   configurador: { label: '📋 Config.', classes: 'bg-orange-50 text-orange-700 border border-orange-100' },
   mercadopago:  { label: '💳 MP',      classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
   manual:       { label: 'Manual',     classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
+  pauta:        { label: '📣 Pauta',   classes: 'bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-100' },
 }
 
 function formatMonto(monto: number): string {

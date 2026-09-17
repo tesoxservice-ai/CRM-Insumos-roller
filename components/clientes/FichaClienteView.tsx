@@ -26,11 +26,12 @@ function formatFechaCorta(iso: string): string {
 }
 
 const ESTADO_BADGE: Record<EstadoCliente, { label: string; classes: string }> = {
-  potencial:      { label: 'Potencial',      classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
-  en_seguimiento: { label: 'En seguimiento', classes: 'bg-amber-50 text-amber-700 border border-amber-100' },
-  activo:         { label: 'Activo',         classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
-  inactivo:       { label: 'Inactivo',       classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
-  sin_ficha:      { label: 'Sin ficha',      classes: 'bg-white text-gray-400 border border-dashed border-gray-300' },
+  potencial:            { label: 'Potencial',            classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
+  visita_agendada:      { label: 'Visita agendada',      classes: 'bg-violet-50 text-violet-700 border border-violet-100' },
+  seguimiento:          { label: 'Seguimiento',          classes: 'bg-amber-50 text-amber-700 border border-amber-100' },
+  no_enviaron_medidas:  { label: 'No enviaron medidas',  classes: 'bg-red-50 text-red-600 border border-red-100' },
+  cliente:              { label: 'Cliente',              classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
+  inactivo:             { label: 'Inactivo',             classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
 }
 
 const CANAL_BADGE: Record<CanalEntrada, { label: string; classes: string }> = {
@@ -38,6 +39,7 @@ const CANAL_BADGE: Record<CanalEntrada, { label: string; classes: string }> = {
   configurador: { label: '📋 Configurador', classes: 'bg-orange-50 text-orange-700 border border-orange-100' },
   mercadopago:  { label: '💳 MercadoPago',  classes: 'bg-blue-50 text-blue-700 border border-blue-100' },
   manual:       { label: 'Manual',          classes: 'bg-gray-50 text-gray-500 border border-gray-200' },
+  pauta:        { label: '📣 Pauta',        classes: 'bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-100' },
 }
 
 const PIPELINE_BADGE: Record<EstadoPipeline, { label: string; classes: string }> = {
@@ -412,6 +414,7 @@ export default function FichaClienteView({ id }: { id: string }) {
                 { label: 'Teléfono', value: cliente.telefono ?? '—' },
                 { label: 'Estado', value: <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoBadge.classes}`}>{estadoBadge.label}</span> },
                 { label: 'Canal de entrada', value: <span className={`inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-medium ${canalBadge.classes}`}>{canalBadge.label}</span> },
+                { label: 'Vendedor asignado', value: cliente.vendedor_nombre ?? <span className="text-gray-300">Sin asignar</span> },
                 { label: 'Fecha de alta', value: formatFechaCorta(cliente.created_at) },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">

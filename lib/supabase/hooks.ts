@@ -106,6 +106,8 @@ export function useCliente(id: string): UseClienteReturn {
       created_at: data.created_at,
       ultima_interaccion: data.ultima_interaccion,
       creado_por: data.creado_por ?? null,
+      vendedor_id: data.vendedor_id ?? null,
+      vendedor_nombre: data.vendedor_nombre ?? null,
       oportunidades: (data.oportunidades ?? []).map(
         (o: Record<string, unknown>) => ({
           id: o.id as string,

@@ -5,10 +5,11 @@
 
 export type EstadoCliente =
   | 'potencial'
-  | 'en_seguimiento'
-  | 'activo'
   | 'inactivo'
-  | 'sin_ficha'
+  | 'cliente'
+  | 'visita_agendada'
+  | 'seguimiento'
+  | 'no_enviaron_medidas'
 
 export type EstadoPipeline =
   | 'consulta'
@@ -22,6 +23,7 @@ export type CanalEntrada =
   | 'configurador'
   | 'mercadopago'
   | 'manual'
+  | 'pauta'
 
 export type TipoInteraccion =
   | 'llamada'
@@ -53,6 +55,13 @@ export interface Cliente {
   created_at: string
   ultima_interaccion: string | null
   creado_por: string | null
+  vendedor_id: string | null
+  vendedor_nombre: string | null
+}
+
+export interface Vendedor {
+  id: string
+  nombre: string
 }
 
 export interface Oportunidad {

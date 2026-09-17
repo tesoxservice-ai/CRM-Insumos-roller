@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
-import { createCliente } from '@/lib/supabase/queries'
-import type { CanalEntrada, EstadoCliente } from '@/lib/types'
+import { createCliente, getVendedores } from '@/lib/supabase/queries'
+import type { CanalEntrada, EstadoCliente, Vendedor } from '@/lib/types'
 
 interface NuevoClienteModalProps {
   onClose: () => void
@@ -16,23 +16,26 @@ interface FormState {
   telefono: string
   estado: EstadoCliente
   canal_entrada: CanalEntrada
+  vendedor_id: string
   notas: string
 }
 
 const FORM_INICIAL: FormState = {
   nombre: '',
   telefono: '',
-  estado: 'sin_ficha',
+  estado: 'potencial',
   canal_entrada: 'manual',
+  vendedor_id: '',
   notas: '',
 }
 
 const ESTADO_OPTIONS: { value: EstadoCliente; label: string }[] = [
-  { value: 'sin_ficha',      label: 'Sin ficha' },
-  { value: 'potencial',      label: 'Potencial' },
-  { value: 'en_seguimiento', label: 'En seguimiento' },
-  { value: 'activo',         label: 'Activo' },
-  { value: 'inactivo',       label: 'Inactivo' },
+  { value: 'potencial',            label: 'Potencial' },
+  { value: 'visita_agendada',      label: 'Visita agendada' },
+  { value: 'seguimiento',          label: 'Seguimiento' },
+  { value: 'no_enviaron_medidas',  label: 'No enviaron medidas' },
+  { value: 'cliente',              label: 'Cliente' },
+  { value: 'inactivo',             label: 'Inactivo' },
 ]
 
 const CANAL_OPTIONS: { value: CanalEntrada; label: string }[] = [
@@ -40,6 +43,7 @@ const CANAL_OPTIONS: { value: CanalEntrada; label: string }[] = [
   { value: 'whatsapp',     label: 'WhatsApp' },
   { value: 'configurador', label: 'Configurador' },
   { value: 'mercadopago',  label: 'MercadoPago' },
+  { value: 'pauta',        label: 'Pauta' },
 ]
 
 function validarTelefono(tel: string): string | null {
@@ -70,9 +74,11 @@ export default function NuevoClienteModal({ onClose, onSuccess }: NuevoClienteMo
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [telefonoError, setTelefonoError] = useState<string | null>(null)
+  const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const firstInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { firstInputRef.current?.focus() }, [])
+  useEffect(() => { getVendedores().then(({ data }) => setVendedores(data)) }, [])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -95,11 +101,15 @@ export default function NuevoClienteModal({ onClose, onSuccess }: NuevoClienteMo
     setLoading(true)
     setSubmitError(null)
 
+    const vendedorSeleccionado = vendedores.find((v) => v.id === form.vendedor_id) ?? null
+
     const { error } = await createCliente({
       nombre: form.nombre.trim() || 'Sin nombre',
       telefono: form.telefono.trim() || null,
       estado: form.estado,
       canal_entrada: form.canal_entrada,
+      vendedor_id: vendedorSeleccionado?.id ?? null,
+      vendedor_nombre: vendedorSeleccionado?.nombre ?? null,
       // notas se guarda como primera interacción si existe
     })
 
@@ -143,6 +153,12 @@ export default function NuevoClienteModal({ onClose, onSuccess }: NuevoClienteMo
                 </select>
               </Field>
             </div>
+            <Field label="Vendedor asignado">
+              <select value={form.vendedor_id} onChange={(e) => setField('vendedor_id', e.target.value)} className={inputClass}>
+                <option value="">Sin asignar</option>
+                {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+              </select>
+            </Field>
             <Field label="Notas">
               <textarea value={form.notas} onChange={(e) => setField('notas', e.target.value)} placeholder="Observaciones internas..." rows={3} className={[inputClass, 'resize-none'].join(' ')} />
             </Field>

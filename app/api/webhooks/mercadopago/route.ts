@@ -74,14 +74,14 @@ export async function POST(req: NextRequest) {
       const { data: existente } = await supabase.from('clientes').select('id').eq('telefono', telefono).maybeSingle()
       if (existente) {
         clienteId = existente.id as string
-        void supabase.from('clientes').update({ estado: 'activo' }).eq('id', clienteId).neq('estado', 'activo')
+        void supabase.from('clientes').update({ estado: 'cliente' }).eq('id', clienteId).neq('estado', 'cliente')
       } else {
-        const { data: nuevo, error: errCliente } = await supabase.from('clientes').insert({ nombre, telefono, canal_entrada: 'mercadopago', estado: 'activo' }).select('id').single()
+        const { data: nuevo, error: errCliente } = await supabase.from('clientes').insert({ nombre, telefono, canal_entrada: 'mercadopago', estado: 'cliente' }).select('id').single()
         if (errCliente || !nuevo) return NextResponse.json({ ok: false, error: 'Error al crear cliente' }, { status: 500 })
         clienteId = nuevo.id as string
       }
     } else {
-      const { data: nuevo, error: errCliente } = await supabase.from('clientes').insert({ nombre, telefono: null, canal_entrada: 'mercadopago', estado: 'activo' }).select('id').single()
+      const { data: nuevo, error: errCliente } = await supabase.from('clientes').insert({ nombre, telefono: null, canal_entrada: 'mercadopago', estado: 'cliente' }).select('id').single()
       if (errCliente || !nuevo) return NextResponse.json({ ok: false, error: 'Error al crear cliente' }, { status: 500 })
       clienteId = nuevo.id as string
     }

@@ -23,10 +23,10 @@ const ESTADO_PIPELINE_COLORS: Record<EstadoPipeline, string> = {
   negociacion: 'bg-amber-400', ganado: 'bg-emerald-500', perdido: 'bg-red-400',
 }
 const CANAL_LABELS: Record<CanalEntrada, string> = {
-  whatsapp: 'WhatsApp', configurador: 'Configurador', mercadopago: 'MercadoPago', manual: 'Manual',
+  whatsapp: 'WhatsApp', configurador: 'Configurador', mercadopago: 'MercadoPago', manual: 'Manual', pauta: 'Pauta',
 }
 const CANAL_COLORS: Record<CanalEntrada, string> = {
-  whatsapp: 'bg-emerald-500', configurador: 'bg-blue-500', mercadopago: 'bg-sky-400', manual: 'bg-gray-300',
+  whatsapp: 'bg-emerald-500', configurador: 'bg-blue-500', mercadopago: 'bg-sky-400', manual: 'bg-gray-300', pauta: 'bg-fuchsia-400',
 }
 const TIPO_LABELS: Record<TipoInteraccion, string> = {
   llamada: 'Llamada', whatsapp: 'WhatsApp', email: 'Email', reunion: 'Reunión', nota: 'Nota',
@@ -36,7 +36,7 @@ const TIPO_COLORS: Record<TipoInteraccion, string> = {
 }
 
 const ESTADOS_PIPELINE_ALL: EstadoPipeline[] = ['consulta', 'cotizacion_enviada', 'negociacion', 'ganado', 'perdido']
-const CANALES_ALL: CanalEntrada[] = ['whatsapp', 'configurador', 'mercadopago', 'manual']
+const CANALES_ALL: CanalEntrada[] = ['whatsapp', 'configurador', 'mercadopago', 'manual', 'pauta']
 const TIPOS_ALL: TipoInteraccion[] = ['llamada', 'whatsapp', 'email', 'reunion', 'nota']
 
 function formatMonto(n: number): string {
@@ -139,7 +139,7 @@ export function ReportesView() {
   const { clientes, oportunidades, interacciones, loading, error, refetch } = useReportesData()
 
   const m = useMemo(() => {
-    const activos = clientes.filter((c) => c.estado === 'activo').length
+    const activos = clientes.filter((c) => c.estado === 'cliente').length
     const abiertas = oportunidades.filter((o) => o.estado_pipeline !== 'ganado' && o.estado_pipeline !== 'perdido')
     const ganadas = oportunidades.filter((o) => o.estado_pipeline === 'ganado').length
     const perdidas = oportunidades.filter((o) => o.estado_pipeline === 'perdido').length
@@ -156,20 +156,23 @@ export function ReportesView() {
     for (const i of interacciones) interaccionesByTipo[i.tipo]++
 
     // ── Actividad por vendedor ─────────────────────────────────────────────
-    const vendedoresMap = new Map<string, { interacciones: number; oportunidades: number }>()
+    const vendedoresMap = new Map<string, { interacciones: number; oportunidades: number; clientesAsignados: number }>()
+    function getVendedor(nombre: string) {
+      if (!vendedoresMap.has(nombre)) vendedoresMap.set(nombre, { interacciones: 0, oportunidades: 0, clientesAsignados: 0 })
+      return vendedoresMap.get(nombre)!
+    }
     for (const i of interacciones) {
-      const nombre = i.creado_por_nombre ?? 'Sin asignar'
-      if (!vendedoresMap.has(nombre)) vendedoresMap.set(nombre, { interacciones: 0, oportunidades: 0 })
-      vendedoresMap.get(nombre)!.interacciones++
+      getVendedor(i.creado_por_nombre ?? 'Sin asignar').interacciones++
     }
     for (const o of oportunidades) {
-      const nombre = o.creado_por_nombre ?? 'Sin asignar'
-      if (!vendedoresMap.has(nombre)) vendedoresMap.set(nombre, { interacciones: 0, oportunidades: 0 })
-      vendedoresMap.get(nombre)!.oportunidades++
+      getVendedor(o.creado_por_nombre ?? 'Sin asignar').oportunidades++
+    }
+    for (const c of clientes) {
+      if (c.vendedor_nombre) getVendedor(c.vendedor_nombre).clientesAsignados++
     }
     const vendedores = [...vendedoresMap.entries()]
       .map(([nombre, stats]) => ({ nombre, ...stats }))
-      .sort((a, b) => b.interacciones - a.interacciones)
+      .sort((a, b) => (b.interacciones + b.oportunidades + b.clientesAsignados) - (a.interacciones + a.oportunidades + a.clientesAsignados))
 
     const sinContacto = clientes
       .filter((c) => !c.ultima_interaccion || diasDesde(c.ultima_interaccion) > 30)
@@ -260,7 +263,7 @@ export function ReportesView() {
 
           {/* Actividad por vendedor */}
           {m.vendedores.length > 0 && (
-            <SectionCard title="Actividad por vendedor" subtitle="Interacciones y oportunidades creadas por cada uno">
+            <SectionCard title="Actividad por vendedor" subtitle="Interacciones, oportunidades y clientes asignados a cada uno">
               <div className="space-y-3">
                 {m.vendedores.map((v) => (
                   <div key={v.nombre} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100">
@@ -271,6 +274,10 @@ export function ReportesView() {
                       <p className="text-sm font-semibold text-gray-800 truncate min-w-0">{v.nombre}</p>
                     </div>
                     <div className="flex items-center gap-4 shrink-0 pl-11 sm:pl-0">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-gray-900">{v.clientesAsignados}</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Clientes</p>
+                      </div>
                       <div className="text-center">
                         <p className="text-lg font-bold text-gray-900">{v.interacciones}</p>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide">Interacciones</p>

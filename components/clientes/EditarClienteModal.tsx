@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
-import { updateCliente } from '@/lib/supabase/queries'
-import type { CanalEntrada, EstadoCliente, Cliente } from '@/lib/types'
+import { updateCliente, getVendedores } from '@/lib/supabase/queries'
+import type { CanalEntrada, EstadoCliente, Cliente, Vendedor } from '@/lib/types'
 
 interface EditarClienteModalProps {
   cliente: Cliente
@@ -17,15 +17,17 @@ interface FormState {
   telefono: string
   estado: EstadoCliente
   canal_entrada: CanalEntrada
+  vendedor_id: string
   notas: string
 }
 
 const ESTADO_OPTIONS: { value: EstadoCliente; label: string }[] = [
-  { value: 'sin_ficha',      label: 'Sin ficha' },
-  { value: 'potencial',      label: 'Potencial' },
-  { value: 'en_seguimiento', label: 'En seguimiento' },
-  { value: 'activo',         label: 'Activo' },
-  { value: 'inactivo',       label: 'Inactivo' },
+  { value: 'potencial',            label: 'Potencial' },
+  { value: 'visita_agendada',      label: 'Visita agendada' },
+  { value: 'seguimiento',          label: 'Seguimiento' },
+  { value: 'no_enviaron_medidas',  label: 'No enviaron medidas' },
+  { value: 'cliente',              label: 'Cliente' },
+  { value: 'inactivo',             label: 'Inactivo' },
 ]
 
 const CANAL_OPTIONS: { value: CanalEntrada; label: string }[] = [
@@ -33,6 +35,7 @@ const CANAL_OPTIONS: { value: CanalEntrada; label: string }[] = [
   { value: 'whatsapp',     label: 'WhatsApp' },
   { value: 'configurador', label: 'Configurador' },
   { value: 'mercadopago',  label: 'MercadoPago' },
+  { value: 'pauta',        label: 'Pauta' },
 ]
 
 const BRAND = '#1B3FA0'
@@ -58,13 +61,16 @@ export default function EditarClienteModal({ cliente, onClose, onSuccess }: Edit
     telefono: cliente.telefono ?? '',
     estado: cliente.estado,
     canal_entrada: cliente.canal_entrada,
+    vendedor_id: cliente.vendedor_id ?? '',
     notas: '',
   })
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const firstInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { firstInputRef.current?.focus() }, [])
+  useEffect(() => { getVendedores().then(({ data }) => setVendedores(data)) }, [])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -82,11 +88,15 @@ export default function EditarClienteModal({ cliente, onClose, onSuccess }: Edit
     setLoading(true)
     setSubmitError(null)
 
+    const vendedorSeleccionado = vendedores.find((v) => v.id === form.vendedor_id) ?? null
+
     const { error } = await updateCliente(cliente.id, {
       nombre: form.nombre.trim() || 'Sin nombre',
       telefono: form.telefono.trim() || null,
       estado: form.estado,
       canal_entrada: form.canal_entrada,
+      vendedor_id: vendedorSeleccionado?.id ?? null,
+      vendedor_nombre: vendedorSeleccionado?.nombre ?? null,
     })
 
     setLoading(false)
@@ -151,6 +161,13 @@ export default function EditarClienteModal({ cliente, onClose, onSuccess }: Edit
                 </select>
               </Field>
             </div>
+
+            <Field label="Vendedor asignado">
+              <select value={form.vendedor_id} onChange={(e) => setField('vendedor_id', e.target.value)} className={inputClass}>
+                <option value="">Sin asignar</option>
+                {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+              </select>
+            </Field>
 
             {submitError && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 border border-red-100">{submitError}</p>

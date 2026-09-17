@@ -10,6 +10,7 @@ import type {
   MovimientoCaja,
   Oportunidad,
   TipoInteraccion,
+  Vendedor,
 } from '@/lib/types'
 
 type QueryResult<T> = Promise<{ data: T | null; error: Error | null }>
@@ -65,6 +66,8 @@ export async function getClienteById(id: string): QueryResult<ClienteConRelacion
     created_at: data.created_at,
     ultima_interaccion: data.ultima_interaccion,
     creado_por: data.creado_por ?? null,
+    vendedor_id: data.vendedor_id ?? null,
+    vendedor_nombre: data.vendedor_nombre ?? null,
     oportunidades: (data.oportunidades ?? []).map(
       (o: Record<string, unknown>) => ({
         id: o.id as string,
@@ -354,4 +357,19 @@ export async function deleteMovimientoCaja(id: string): Promise<{ error: string 
   const supabase = createClient()
   const { error } = await supabase.from('movimientos_caja').delete().eq('id', id)
   return { error: error?.message ?? null }
+}
+
+// ============================================================
+// VENDEDORES
+// ============================================================
+
+export async function getVendedores(): Promise<{ data: Vendedor[]; error: string | null }> {
+  try {
+    const res = await fetch('/api/vendedores')
+    const body = await res.json()
+    if (!res.ok) return { data: [], error: body.error ?? 'Error al cargar los vendedores' }
+    return { data: body.vendedores as Vendedor[], error: null }
+  } catch {
+    return { data: [], error: 'Error al cargar los vendedores' }
+  }
 }
