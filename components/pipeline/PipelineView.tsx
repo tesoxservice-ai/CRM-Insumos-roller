@@ -175,8 +175,24 @@ function NuevaOportunidadModal({ onClose, onSuccess }: { onClose: () => void; on
   )
 }
 
-function KanbanColumn({ config, tarjetas, onMover }: { config: ColConfig; tarjetas: OportunidadConCliente[]; onMover: (id: string, nuevoEstado: EstadoPipeline) => void }) {
+function KanbanColumn({ config, tarjetas, onMover, hideHeader }: { config: ColConfig; tarjetas: OportunidadConCliente[]; onMover: (id: string, nuevoEstado: EstadoPipeline) => void; hideHeader?: boolean }) {
   const EmptyIcon = config.emptyIcon
+
+  const lista = tarjetas.length === 0 ? (
+    <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+      <div className="w-11 h-11 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+        <EmptyIcon size={18} className="text-gray-300" />
+      </div>
+      <p className="text-xs text-gray-400 leading-tight max-w-[200px]">Las oportunidades en esta etapa se mostrarán aquí.</p>
+    </div>
+  ) : (
+    tarjetas.map((op) => <OportunidadCard key={op.id} oportunidad={op} onMover={onMover} />)
+  )
+
+  if (hideHeader) {
+    return <div className="flex flex-col gap-3">{lista}</div>
+  }
+
   return (
     <div className={`flex flex-col rounded-xl border border-gray-200/80 overflow-visible ${config.bg}`} style={{ borderTop: `3px solid ${config.accent}` }}>
       <div className="flex items-center justify-between px-4 py-3">
@@ -186,16 +202,7 @@ function KanbanColumn({ config, tarjetas, onMover }: { config: ColConfig; tarjet
         </span>
       </div>
       <div className="flex flex-col gap-3 px-3 pb-3 min-h-[200px] overflow-visible">
-        {tarjetas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-            <div className="w-10 h-10 rounded-full bg-white/80 border border-gray-200 flex items-center justify-center">
-              <EmptyIcon size={16} className="text-gray-300" />
-            </div>
-            <p className="text-xs text-gray-400 leading-tight max-w-[140px]">Las oportunidades en esta etapa se mostrarán aquí.</p>
-          </div>
-        ) : (
-          tarjetas.map((op) => <OportunidadCard key={op.id} oportunidad={op} onMover={onMover} />)
-        )}
+        {lista}
       </div>
     </div>
   )
@@ -302,7 +309,7 @@ export default function PipelineView() {
       )}
 
       {/* Subtítulo kanban */}
-      {!loading && !fetchError && (
+      {!loading && !fetchError && !isMobile && (
         <p className="text-xs text-gray-400 mb-3">{metricas.total} oportunidades en total</p>
       )}
 
@@ -320,7 +327,27 @@ export default function PipelineView() {
 
       {!loading && !fetchError && isMobile && (
         <>
-          <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-3 px-3">
+          {/* Mini funnel — barra proporcional por etapa */}
+          {metricas.total > 0 && (
+            <div className="flex h-1.5 w-full overflow-hidden rounded-full mb-3">
+              {COLUMNAS.map((col) => {
+                const cantidad = tablero[col.id].length
+                if (cantidad === 0) return null
+                return (
+                  <button
+                    key={col.id}
+                    type="button"
+                    onClick={() => setColumnaActiva(col.id)}
+                    style={{ width: `${(cantidad / metricas.total) * 100}%`, backgroundColor: col.accent, opacity: columnaActiva === col.id ? 1 : 0.35 }}
+                    aria-label={col.label}
+                  />
+                )
+              })}
+            </div>
+          )}
+
+          {/* Tabs por etapa */}
+          <div className="flex gap-2 overflow-x-auto pb-3 -mx-3 px-3">
             {COLUMNAS.map((col) => {
               const activa = columnaActiva === col.id
               return (
@@ -328,13 +355,14 @@ export default function PipelineView() {
                   key={col.id}
                   type="button"
                   onClick={() => setColumnaActiva(col.id)}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
-                    activa ? 'text-white shadow-sm' : 'bg-gray-50 text-gray-500 border border-gray-200'
+                  className={`shrink-0 inline-flex items-center gap-2 rounded-full pl-2.5 pr-3 py-2 text-xs font-semibold transition-all border ${
+                    activa ? 'text-white shadow-sm border-transparent' : 'bg-white text-gray-500 border-gray-200'
                   }`}
                   style={activa ? { backgroundColor: col.accent } : {}}
                 >
+                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${activa ? 'bg-white' : ''}`} style={!activa ? { backgroundColor: col.accent } : {}} />
                   {col.label}
-                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${activa ? 'bg-white/25' : 'bg-gray-200'}`}>
+                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${activa ? 'bg-white/25' : 'bg-gray-100 text-gray-500'}`}>
                     {tablero[col.id].length}
                   </span>
                 </button>
@@ -344,7 +372,7 @@ export default function PipelineView() {
           <div className="pb-4">
             {(() => {
               const config = COLUMNAS.find((c) => c.id === columnaActiva)!
-              return <KanbanColumn config={config} tarjetas={tablero[columnaActiva]} onMover={handleMover} />
+              return <KanbanColumn config={config} tarjetas={tablero[columnaActiva]} onMover={handleMover} hideHeader />
             })()}
           </div>
         </>
