@@ -15,7 +15,7 @@ import type {
 
 type QueryResult<T> = Promise<{ data: T | null; error: Error | null }>
 
-interface OportunidadConCliente extends Oportunidad {
+export interface OportunidadConCliente extends Oportunidad {
   cliente: Cliente
 }
 
@@ -39,6 +39,7 @@ export async function getClientes(): QueryResult<Cliente[]> {
   const { data, error } = await supabase
     .from('clientes')
     .select('*')
+    .is('deleted_at', null)
     .order('ultima_interaccion', { ascending: false, nullsFirst: false })
   return { data: data ?? null, error: toError(error) }
 }
@@ -68,17 +69,22 @@ export async function getClienteById(id: string): QueryResult<ClienteConRelacion
     creado_por: data.creado_por ?? null,
     vendedor_id: data.vendedor_id ?? null,
     vendedor_nombre: data.vendedor_nombre ?? null,
-    oportunidades: (data.oportunidades ?? []).map(
-      (o: Record<string, unknown>) => ({
-        id: o.id as string,
-        cliente_id: o.cliente_id as string,
-        estado_pipeline: o.estado_pipeline as EstadoPipeline,
-        monto: o.monto as number | null,
-        detalle_cotizacion: o.detalle_cotizacion as string | null,
-        created_at: o.created_at as string,
-        creado_por: o.creado_por as string | null,
-      })
-    ),
+    deleted_at: data.deleted_at ?? null,
+    oportunidades: (data.oportunidades ?? [])
+      .filter((o: Record<string, unknown>) => !o.deleted_at)
+      .map(
+        (o: Record<string, unknown>) => ({
+          id: o.id as string,
+          cliente_id: o.cliente_id as string,
+          estado_pipeline: o.estado_pipeline as EstadoPipeline,
+          monto: o.monto as number | null,
+          detalle_cotizacion: o.detalle_cotizacion as string | null,
+          created_at: o.created_at as string,
+          creado_por: o.creado_por as string | null,
+          creado_por_nombre: null,
+          deleted_at: null,
+        })
+      ),
     interacciones: (data.interacciones ?? []).map(
       (i: Record<string, unknown>) => ({
         id: i.id as string,
@@ -134,6 +140,42 @@ export async function getClienteByTelefono(telefono: string): QueryResult<Client
   return { data: data ?? null, error: toError(error) }
 }
 
+// Envía el cliente a la papelera. Sus oportunidades activas van con él.
+export async function eliminarCliente(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const ahora = new Date().toISOString()
+
+  const { error: errOportunidades } = await supabase
+    .from('oportunidades')
+    .update({ deleted_at: ahora })
+    .eq('cliente_id', id)
+    .is('deleted_at', null)
+  if (errOportunidades) return { error: errOportunidades.message }
+
+  const { error } = await supabase.from('clientes').update({ deleted_at: ahora }).eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export async function restaurarCliente(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('clientes').update({ deleted_at: null }).eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+// Borra al cliente y todo lo que depende de él. No se puede deshacer.
+export async function eliminarClientePermanente(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+
+  const { error: errInteracciones } = await supabase.from('interacciones').delete().eq('cliente_id', id)
+  if (errInteracciones) return { error: errInteracciones.message }
+
+  const { error: errOportunidades } = await supabase.from('oportunidades').delete().eq('cliente_id', id)
+  if (errOportunidades) return { error: errOportunidades.message }
+
+  const { error } = await supabase.from('clientes').delete().eq('id', id)
+  return { error: error?.message ?? null }
+}
+
 // ============================================================
 // OPORTUNIDADES
 // ============================================================
@@ -143,6 +185,7 @@ export async function getOportunidades(): QueryResult<OportunidadConCliente[]> {
   const { data, error } = await supabase
     .from('oportunidades')
     .select(`*, cliente:clientes ( * )`)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) return { data: null, error: toError(error) }
@@ -156,6 +199,7 @@ export async function getOportunidades(): QueryResult<OportunidadConCliente[]> {
     created_at: row.created_at,
     creado_por: row.creado_por ?? null,
     creado_por_nombre: row.creado_por_nombre ?? null,
+    deleted_at: row.deleted_at ?? null,
     cliente: row.cliente as Cliente,
   }))
 
@@ -168,6 +212,7 @@ export async function getOportunidadesByCliente(clienteId: string): QueryResult<
     .from('oportunidades')
     .select('*')
     .eq('cliente_id', clienteId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
   return { data: data ?? null, error: toError(error) }
 }
@@ -211,6 +256,24 @@ export async function updateEstadoPipeline(
   estado: EstadoPipeline
 ): QueryResult<Oportunidad> {
   return updateOportunidad(id, { estado_pipeline: estado })
+}
+
+export async function eliminarOportunidad(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('oportunidades').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export async function restaurarOportunidad(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('oportunidades').update({ deleted_at: null }).eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export async function eliminarOportunidadPermanente(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('oportunidades').delete().eq('id', id)
+  return { error: error?.message ?? null }
 }
 
 // ============================================================
@@ -274,8 +337,8 @@ export interface ReportesData {
 export async function getReportesData(): Promise<ReportesData> {
   const supabase = createClient()
   const [clientesRes, oportunidadesRes, interaccionesRes] = await Promise.all([
-    supabase.from('clientes').select('*'),
-    supabase.from('oportunidades').select('*'),
+    supabase.from('clientes').select('*').is('deleted_at', null),
+    supabase.from('oportunidades').select('*').is('deleted_at', null),
     supabase.from('interacciones').select('*'),
   ])
 
@@ -300,6 +363,7 @@ export async function getOportunidadAbiertaByCliente(clienteId: string): Promise
     .from('oportunidades')
     .select('*')
     .eq('cliente_id', clienteId)
+    .is('deleted_at', null)
     .not('estado_pipeline', 'in', '("ganado","perdido")')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -371,5 +435,32 @@ export async function getVendedores(): Promise<{ data: Vendedor[]; error: string
     return { data: body.vendedores as Vendedor[], error: null }
   } catch {
     return { data: [], error: 'Error al cargar los vendedores' }
+  }
+}
+
+// ============================================================
+// PAPELERA
+// ============================================================
+
+export interface PapeleraData {
+  clientes: Cliente[]
+  oportunidades: OportunidadConCliente[]
+  error: string | null
+}
+
+export async function getPapelera(): Promise<PapeleraData> {
+  const supabase = createClient()
+  const [clientesRes, oportunidadesRes] = await Promise.all([
+    supabase.from('clientes').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
+    supabase.from('oportunidades').select(`*, cliente:clientes ( * )`).not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
+  ])
+
+  if (clientesRes.error) return { clientes: [], oportunidades: [], error: clientesRes.error.message }
+  if (oportunidadesRes.error) return { clientes: [], oportunidades: [], error: oportunidadesRes.error.message }
+
+  return {
+    clientes: clientesRes.data as Cliente[],
+    oportunidades: oportunidadesRes.data as OportunidadConCliente[],
+    error: null,
   }
 }

@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ChevronDown, MoveRight, User } from 'lucide-react'
+import { ChevronDown, MoveRight, User, Trash2 } from 'lucide-react'
 import type { CanalEntrada, EstadoPipeline, Oportunidad, Cliente } from '@/lib/types'
 
 export interface OportunidadConCliente extends Oportunidad {
@@ -12,6 +12,7 @@ export interface OportunidadConCliente extends Oportunidad {
 interface OportunidadCardProps {
   oportunidad: OportunidadConCliente
   onMover: (id: string, nuevoEstado: EstadoPipeline) => void
+  onEliminar: (id: string) => void
 }
 
 const COLUMNAS: { id: EstadoPipeline; label: string }[] = [
@@ -40,7 +41,7 @@ function formatFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-export default function OportunidadCard({ oportunidad, onMover }: OportunidadCardProps) {
+export default function OportunidadCard({ oportunidad, onMover, onEliminar }: OportunidadCardProps) {
   const [dropdownAbierto, setDropdownAbierto] = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -76,6 +77,13 @@ export default function OportunidadCard({ oportunidad, onMover }: OportunidadCar
   function handleMover(nuevoEstado: EstadoPipeline) {
     setDropdownAbierto(false)
     onMover(oportunidad.id, nuevoEstado)
+  }
+
+  function handleEliminar() {
+    setDropdownAbierto(false)
+    const nombre = oportunidad.cliente?.nombre || 'esta oportunidad'
+    if (!window.confirm(`¿Eliminar la oportunidad de ${nombre}? Se puede restaurar desde la Papelera.`)) return
+    onEliminar(oportunidad.id)
   }
 
   return (
@@ -155,6 +163,15 @@ export default function OportunidadCard({ oportunidad, onMover }: OportunidadCar
               {col.label}
             </button>
           ))}
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            type="button"
+            onClick={handleEliminar}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors font-medium"
+          >
+            <Trash2 size={11} />
+            Eliminar
+          </button>
         </div>
       )}
     </div>

@@ -4,12 +4,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Phone, Edit, RefreshCw,
+  ArrowLeft, Phone, Edit, RefreshCw, Trash2,
   Phone as PhoneIcon, MessageCircle, Mail, Users, FileText, Plus,
   Calendar, Tag, type LucideIcon,
 } from 'lucide-react'
 import { useCliente } from '@/lib/supabase/hooks'
-import { createInteraccion } from '@/lib/supabase/queries'
+import { createInteraccion, eliminarCliente } from '@/lib/supabase/queries'
 import EditarClienteModal from './EditarClienteModal'
 import ClienteAvatar from './ClienteAvatar'
 import { ChipSeguimiento } from '@/components/interacciones/ChipSeguimiento'
@@ -320,6 +320,18 @@ export default function FichaClienteView({ id }: { id: string }) {
   const router = useRouter()
   const { cliente, loading, error, refetch } = useCliente(id)
   const [modalEdicion, setModalEdicion] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
+
+  async function handleEliminar() {
+    if (!cliente) return
+    const nombre = cliente.nombre ?? cliente.telefono ?? 'este cliente'
+    if (!window.confirm(`¿Eliminar a ${nombre}? Se puede restaurar desde la Papelera. Sus oportunidades activas también se enviarán a la papelera.`)) return
+    setEliminando(true)
+    const { error: err } = await eliminarCliente(cliente.id)
+    setEliminando(false)
+    if (err) { alert(`Error al eliminar: ${err}`); return }
+    router.push('/clientes')
+  }
 
   if (loading) return (
     <div className="space-y-4 animate-pulse">
@@ -353,10 +365,16 @@ export default function FichaClienteView({ id }: { id: string }) {
           <ArrowLeft size={15} />
           Volver a clientes
         </button>
-        <button type="button" onClick={() => setModalEdicion(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm">
-          <Edit size={14} />
-          Editar ficha
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setModalEdicion(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm">
+            <Edit size={14} />
+            Editar ficha
+          </button>
+          <button type="button" onClick={handleEliminar} disabled={eliminando} className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-white px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors shadow-sm disabled:opacity-50">
+            <Trash2 size={14} />
+            Eliminar
+          </button>
+        </div>
       </div>
 
       {/* Header cliente */}

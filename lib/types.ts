@@ -57,6 +57,7 @@ export interface Cliente {
   creado_por: string | null
   vendedor_id: string | null
   vendedor_nombre: string | null
+  deleted_at: string | null
 }
 
 export interface Vendedor {
@@ -73,6 +74,7 @@ export interface Oportunidad {
   created_at: string
   creado_por: string | null
   creado_por_nombre: string | null
+  deleted_at: string | null
 }
 
 export interface Interaccion {

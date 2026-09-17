@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, KanbanSquare, Wallet, MoreHorizontal,
-  Users, Clock, BarChart3, Calendar, LogOut, X, type LucideIcon,
+  Users, Clock, BarChart3, Calendar, LogOut, X, Trash2, type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Clientes',  href: '/clientes',  icon: Users },
       { label: 'Historial', href: '/historial', icon: Clock },
+      { label: 'Papelera',  href: '/papelera',  icon: Trash2 },
     ],
   },
   {
@@ -64,6 +65,7 @@ const MOBILE_MAS_ITEMS: NavItem[] = [
   { label: 'Historial',  href: '/historial', icon: Clock },
   { label: 'Reportes',   href: '/reportes',  icon: BarChart3 },
   { label: 'Calendario', href: '/calendar',  icon: Calendar },
+  { label: 'Papelera',   href: '/papelera',  icon: Trash2 },
 ]
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {

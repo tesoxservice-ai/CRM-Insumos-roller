@@ -11,7 +11,7 @@ import {
 import { Plus, RefreshCw, X, AlertCircle, TrendingUp, DollarSign, Users, Inbox } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useOportunidadesPorEstado } from '@/lib/supabase/hooks'
-import { updateEstadoPipeline, createOportunidad, getClientes } from '@/lib/supabase/queries'
+import { updateEstadoPipeline, createOportunidad, getClientes, eliminarOportunidad } from '@/lib/supabase/queries'
 import OportunidadCard, { type OportunidadConCliente } from './OportunidadCard'
 import type { Cliente, EstadoPipeline, Oportunidad } from '@/lib/types'
 
@@ -175,7 +175,7 @@ function NuevaOportunidadModal({ onClose, onSuccess }: { onClose: () => void; on
   )
 }
 
-function KanbanColumn({ config, tarjetas, onMover, hideHeader }: { config: ColConfig; tarjetas: OportunidadConCliente[]; onMover: (id: string, nuevoEstado: EstadoPipeline) => void; hideHeader?: boolean }) {
+function KanbanColumn({ config, tarjetas, onMover, onEliminar, hideHeader }: { config: ColConfig; tarjetas: OportunidadConCliente[]; onMover: (id: string, nuevoEstado: EstadoPipeline) => void; onEliminar: (id: string) => void; hideHeader?: boolean }) {
   const EmptyIcon = config.emptyIcon
 
   const lista = tarjetas.length === 0 ? (
@@ -186,7 +186,7 @@ function KanbanColumn({ config, tarjetas, onMover, hideHeader }: { config: ColCo
       <p className="text-xs text-gray-400 leading-tight max-w-[200px]">Las oportunidades en esta etapa se mostrarán aquí.</p>
     </div>
   ) : (
-    tarjetas.map((op) => <OportunidadCard key={op.id} oportunidad={op} onMover={onMover} />)
+    tarjetas.map((op) => <OportunidadCard key={op.id} oportunidad={op} onMover={onMover} onEliminar={onEliminar} />)
   )
 
   if (hideHeader) {
@@ -271,6 +271,28 @@ export default function PipelineView() {
         return revertido
       })
       setToastMsg(`Error al mover la oportunidad: ${error.message}`)
+    }
+  }, [tablero])
+
+  const handleEliminar = useCallback(async (id: string) => {
+    let tarjetaEliminada: OportunidadConCliente | null = null
+    let estadoOrigen: EstadoPipeline | null = null
+    for (const estado of Object.keys(tablero) as EstadoPipeline[]) {
+      const found = tablero[estado].find((op) => op.id === id)
+      if (found) { tarjetaEliminada = found; estadoOrigen = estado; break }
+    }
+    if (!tarjetaEliminada || !estadoOrigen) return
+    setLocalOps((prev) => {
+      if (!prev || !estadoOrigen) return prev
+      return { ...prev, [estadoOrigen]: prev[estadoOrigen].filter((op) => op.id !== id) }
+    })
+    const { error } = await eliminarOportunidad(id)
+    if (error) {
+      setLocalOps((prev) => {
+        if (!prev || !tarjetaEliminada || !estadoOrigen) return prev
+        return { ...prev, [estadoOrigen]: [tarjetaEliminada, ...prev[estadoOrigen]] }
+      })
+      setToastMsg(`Error al eliminar la oportunidad: ${error}`)
     }
   }, [tablero])
 
@@ -372,7 +394,7 @@ export default function PipelineView() {
           <div className="pb-4">
             {(() => {
               const config = COLUMNAS.find((c) => c.id === columnaActiva)!
-              return <KanbanColumn config={config} tarjetas={tablero[columnaActiva]} onMover={handleMover} hideHeader />
+              return <KanbanColumn config={config} tarjetas={tablero[columnaActiva]} onMover={handleMover} onEliminar={handleEliminar} hideHeader />
             })()}
           </div>
         </>
@@ -381,7 +403,7 @@ export default function PipelineView() {
       {!loading && !fetchError && !isMobile && (
         <div className="grid grid-cols-5 gap-3 pb-4">
           {COLUMNAS.map((col) => (
-            <KanbanColumn key={col.id} config={col} tarjetas={tablero[col.id]} onMover={handleMover} />
+            <KanbanColumn key={col.id} config={col} tarjetas={tablero[col.id]} onMover={handleMover} onEliminar={handleEliminar} />
           ))}
         </div>
       )}

@@ -3,9 +3,10 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Download, Plus, ChevronRight, RefreshCw, Users } from 'lucide-react'
+import { Search, Download, Plus, ChevronRight, RefreshCw, Users, Trash2 } from 'lucide-react'
 import { useClientes } from '@/lib/supabase/hooks'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { eliminarCliente } from '@/lib/supabase/queries'
 import ClienteAvatar from './ClienteAvatar'
 import NuevoClienteModal from './NuevoClienteModal'
 import type { Cliente, CanalEntrada, EstadoCliente } from '@/lib/types'
@@ -58,7 +59,7 @@ function TableSkeleton() {
   )
 }
 
-function ClienteRow({ cliente, onClick }: { cliente: Cliente; onClick: () => void }) {
+function ClienteRow({ cliente, onClick, onDelete }: { cliente: Cliente; onClick: () => void; onDelete: () => void }) {
   const displayName = cliente.nombre ?? cliente.telefono ?? 'Sin nombre'
   const estadoBadge = ESTADO_BADGE[cliente.estado]
   const canalBadge = CANAL_BADGE[cliente.canal_entrada]
@@ -96,34 +97,42 @@ function ClienteRow({ cliente, onClick }: { cliente: Cliente; onClick: () => voi
         {formatUltimoContacto(cliente.ultima_interaccion)}
       </td>
       <td className="px-4 py-4">
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-blue-600 transition-colors">
-          Ver ficha
-          <ChevronRight size={12} />
-        </span>
+        <div className="flex items-center justify-end gap-3">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-blue-600 transition-colors">
+            Ver ficha
+            <ChevronRight size={12} />
+          </span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1.5 rounded-lg hover:bg-red-50"
+            aria-label="Eliminar cliente"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </td>
     </tr>
   )
 }
 
-function ClienteCardMobile({ cliente, onClick }: { cliente: Cliente; onClick: () => void }) {
+function ClienteCardMobile({ cliente, onClick, onDelete }: { cliente: Cliente; onClick: () => void; onDelete: () => void }) {
   const displayName = cliente.nombre ?? cliente.telefono ?? 'Sin nombre'
   const estadoBadge = ESTADO_BADGE[cliente.estado]
   const canalBadge = CANAL_BADGE[cliente.canal_entrada]
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-4 active:bg-gray-50 transition-colors"
-    >
-      <div className="flex items-center gap-3">
-        <ClienteAvatar nombre={displayName} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
-          {cliente.telefono && <p className="text-xs text-gray-400 mt-0.5">{cliente.telefono}</p>}
+    <div className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-4 active:bg-gray-50 transition-colors">
+      <button type="button" onClick={onClick} className="w-full text-left">
+        <div className="flex items-center gap-3">
+          <ClienteAvatar nombre={displayName} size="md" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
+            {cliente.telefono && <p className="text-xs text-gray-400 mt-0.5">{cliente.telefono}</p>}
+          </div>
+          <ChevronRight size={16} className="text-gray-300 shrink-0" />
         </div>
-        <ChevronRight size={16} className="text-gray-300 shrink-0" />
-      </div>
+      </button>
       <div className="flex items-center flex-wrap gap-2 mt-3">
         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoBadge.classes}`}>
           {estadoBadge.label}
@@ -135,8 +144,16 @@ function ClienteCardMobile({ cliente, onClick }: { cliente: Cliente; onClick: ()
           <span className="text-xs text-gray-400">· {cliente.vendedor_nombre}</span>
         )}
         <span className="text-xs text-gray-400 ml-auto">{formatUltimoContacto(cliente.ultima_interaccion)}</span>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          className="text-gray-300 hover:text-red-500 transition-colors p-1 -m-1 rounded-lg"
+          aria-label="Eliminar cliente"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -147,6 +164,15 @@ export default function ClientesView() {
   const [busqueda, setBusqueda] = useState('')
   const [vendedorFiltro, setVendedorFiltro] = useState('todos')
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+
+  async function handleDelete(cliente: Cliente) {
+    const nombre = cliente.nombre ?? cliente.telefono ?? 'este cliente'
+    if (!window.confirm(`¿Eliminar a ${nombre}? Se puede restaurar desde la Papelera. Sus oportunidades activas también se enviarán a la papelera.`)) return
+    const { error: err } = await eliminarCliente(cliente.id)
+    if (err) { setToastMsg(`Error al eliminar: ${err}`); return }
+    refetch()
+  }
 
   const vendedoresConClientes = useMemo(() => {
     const nombres = clientes.map((c) => c.vendedor_nombre).filter((n): n is string => !!n)
@@ -289,7 +315,7 @@ export default function ClientesView() {
         ) : isMobile ? (
           <div className="flex flex-col gap-2 p-3">
             {clientesFiltrados.map((cliente) => (
-              <ClienteCardMobile key={cliente.id} cliente={cliente} onClick={() => router.push(`/clientes/${cliente.id}`)} />
+              <ClienteCardMobile key={cliente.id} cliente={cliente} onClick={() => router.push(`/clientes/${cliente.id}`)} onDelete={() => handleDelete(cliente)} />
             ))}
           </div>
         ) : (
@@ -307,7 +333,7 @@ export default function ClientesView() {
               </thead>
               <tbody>
                 {clientesFiltrados.map((cliente) => (
-                  <ClienteRow key={cliente.id} cliente={cliente} onClick={() => router.push(`/clientes/${cliente.id}`)} />
+                  <ClienteRow key={cliente.id} cliente={cliente} onClick={() => router.push(`/clientes/${cliente.id}`)} onDelete={() => handleDelete(cliente)} />
                 ))}
               </tbody>
             </table>
@@ -317,6 +343,13 @@ export default function ClientesView() {
 
       {modalAbierto && (
         <NuevoClienteModal onClose={() => setModalAbierto(false)} onSuccess={() => { refetch(); setModalAbierto(false) }} />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-start gap-2.5 rounded-xl border border-red-200 bg-white px-4 py-3 shadow-xl max-w-xs">
+          <p className="text-sm text-gray-700 leading-snug flex-1">{toastMsg}</p>
+          <button type="button" onClick={() => setToastMsg(null)} className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors text-xs">✕</button>
+        </div>
       )}
     </>
   )

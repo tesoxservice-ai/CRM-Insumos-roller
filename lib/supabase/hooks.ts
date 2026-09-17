@@ -53,6 +53,7 @@ export function useClientes(): UseClientesReturn {
     const { data, error } = await supabase
       .from('clientes')
       .select('*')
+      .is('deleted_at', null)
       .order('ultima_interaccion', { ascending: false, nullsFirst: false })
 
     if (error) {
@@ -108,18 +109,22 @@ export function useCliente(id: string): UseClienteReturn {
       creado_por: data.creado_por ?? null,
       vendedor_id: data.vendedor_id ?? null,
       vendedor_nombre: data.vendedor_nombre ?? null,
-      oportunidades: (data.oportunidades ?? []).map(
-        (o: Record<string, unknown>) => ({
-          id: o.id as string,
-          cliente_id: o.cliente_id as string,
-          estado_pipeline: o.estado_pipeline as EstadoPipeline,
-          monto: o.monto as number | null,
-          detalle_cotizacion: o.detalle_cotizacion as string | null,
-          created_at: o.created_at as string,
-          creado_por: o.creado_por as string | null,
-          creado_por_nombre: o.creado_por_nombre as string | null,
-        })
-      ),
+      deleted_at: data.deleted_at ?? null,
+      oportunidades: (data.oportunidades ?? [])
+        .filter((o: Record<string, unknown>) => !o.deleted_at)
+        .map(
+          (o: Record<string, unknown>) => ({
+            id: o.id as string,
+            cliente_id: o.cliente_id as string,
+            estado_pipeline: o.estado_pipeline as EstadoPipeline,
+            monto: o.monto as number | null,
+            detalle_cotizacion: o.detalle_cotizacion as string | null,
+            created_at: o.created_at as string,
+            creado_por: o.creado_por as string | null,
+            creado_por_nombre: o.creado_por_nombre as string | null,
+            deleted_at: null,
+          })
+        ),
       interacciones: (data.interacciones ?? []).map(
         (i: Record<string, unknown>) => ({
           id: i.id as string,
@@ -162,6 +167,7 @@ export function useOportunidades(): UseOportunidadesReturn {
       const { data, error } = await supabase
         .from('oportunidades')
         .select(`*, cliente:clientes ( * )`)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (cancelled) return
@@ -180,6 +186,7 @@ export function useOportunidades(): UseOportunidadesReturn {
         created_at: row.created_at,
         creado_por: row.creado_por ?? null,
         creado_por_nombre: row.creado_por_nombre ?? null,
+        deleted_at: row.deleted_at ?? null,
         cliente: row.cliente as Cliente,
       }))
 
