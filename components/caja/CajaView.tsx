@@ -418,21 +418,12 @@ export function CajaView() {
           </div>
 
           {/* KPIs */}
-          {isMobile ? (
-            <div className="flex gap-3 overflow-x-auto pb-1 -mx-3 px-3">
-              <div className="shrink-0 w-[170px]"><KpiCard icon={TrendingUp} label="Cobrado" value={formatMonto(metricas.bruto)} sub="ingresos del período" iconBg="bg-emerald-50" iconColor="text-emerald-600" /></div>
-              <div className="shrink-0 w-[170px]"><KpiCard icon={Wallet} label="Por cobrar" value={formatMonto(metricas.totalPendiente)} sub={`${metricas.pendientes.length} pedidos con saldo`} iconBg="bg-amber-50" iconColor="text-amber-600" /></div>
-              <div className="shrink-0 w-[170px]"><KpiCard icon={TrendingDown} label="Gastos" value={formatMonto(metricas.gastosNegocio)} sub="proveedores y operativos" iconBg="bg-red-50" iconColor="text-red-500" /></div>
-              <div className="shrink-0 w-[170px]"><KpiCard icon={PiggyBank} label="Ganancia neta" value={formatMonto(metricas.neto)} sub={`retirado: ${formatMonto(metricas.retiros)}`} iconBg="bg-blue-50" iconColor="text-blue-600" /></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard icon={TrendingUp} label="Cobrado" value={formatMonto(metricas.bruto)} sub="ingresos del período" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
-              <KpiCard icon={Wallet} label="Por cobrar" value={formatMonto(metricas.totalPendiente)} sub={`${metricas.pendientes.length} pedidos con saldo`} iconBg="bg-amber-50" iconColor="text-amber-600" />
-              <KpiCard icon={TrendingDown} label="Gastos" value={formatMonto(metricas.gastosNegocio)} sub="proveedores y operativos" iconBg="bg-red-50" iconColor="text-red-500" />
-              <KpiCard icon={PiggyBank} label="Ganancia neta" value={formatMonto(metricas.neto)} sub={`retirado para vos: ${formatMonto(metricas.retiros)}`} iconBg="bg-blue-50" iconColor="text-blue-600" />
-            </div>
-          )}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard icon={TrendingUp} label="Cobrado" value={formatMonto(metricas.bruto)} sub="ingresos del período" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+            <KpiCard icon={Wallet} label="Por cobrar" value={formatMonto(metricas.totalPendiente)} sub={`${metricas.pendientes.length} pedidos con saldo`} iconBg="bg-amber-50" iconColor="text-amber-600" />
+            <KpiCard icon={TrendingDown} label="Gastos" value={formatMonto(metricas.gastosNegocio)} sub="proveedores y operativos" iconBg="bg-red-50" iconColor="text-red-500" />
+            <KpiCard icon={PiggyBank} label="Ganancia neta" value={formatMonto(metricas.neto)} sub={`retirado para vos: ${formatMonto(metricas.retiros)}`} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
