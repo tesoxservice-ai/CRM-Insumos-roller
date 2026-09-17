@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, ExternalLink, LayoutGrid, List } from 'lucide-react'
-import Link from 'next/link'
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, ExternalLink, LayoutGrid, List, Plus } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { EventoModal, type EventoParaEditar } from '@/components/calendar/EventoModal'
 
 interface EventoCalendar {
   id: string
@@ -30,12 +30,35 @@ function getClienteIdDeDescripcion(descripcion: string): string | null {
   return match ? match[1] : null
 }
 
+// Saca las líneas que agrega automáticamente el CRM (Cliente / Ver ficha) para
+// dejar solo la nota que escribió la persona, y poder editarla sin duplicarlas.
+function limpiarDescripcion(descripcion: string): string {
+  return (descripcion || '')
+    .split('\n')
+    .filter((linea) => !linea.startsWith('Cliente: ') && !linea.startsWith('Ver ficha: '))
+    .join('\n')
+    .trim()
+}
+
+function extraerEventoParaEditar(ev: EventoCalendar): EventoParaEditar {
+  const fecha = getFechaEvento(ev)
+  return {
+    eventId: ev.id,
+    titulo: ev.summary.replace('📞 ', ''),
+    descripcion: limpiarDescripcion(ev.description || ''),
+    fecha: fecha.toLocaleDateString('sv-SE'),
+    clienteId: getClienteIdDeDescripcion(ev.description || ''),
+  }
+}
+
 export default function CalendarPage() {
   const isMobile = useIsMobile()
   const [eventos, setEventos] = useState<EventoCalendar[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [vistaMobile, setVistaMobile] = useState<'lista' | 'grilla'>('lista')
+  const [modalCrear, setModalCrear] = useState(false)
+  const [eventoEditando, setEventoEditando] = useState<EventoParaEditar | null>(null)
   const [mesActual, setMesActual] = useState(() => {
     const hoy = new Date()
     return new Date(hoy.getFullYear(), hoy.getMonth(), 1)
@@ -128,21 +151,17 @@ export default function CalendarPage() {
                     {dia}
                   </span>
                   <div className="flex flex-col gap-0.5 overflow-hidden">
-                    {evDia.slice(0, 3).map((ev) => {
-                      const clienteId = getClienteIdDeDescripcion(ev.description || '')
-                      const pill = (
-                        <div
-                          key={ev.id}
-                          className="text-[11px] px-2 py-0.5 bg-[#1B3FA0] text-white rounded-md truncate cursor-pointer hover:bg-blue-800 transition-colors leading-5"
-                          title={ev.summary}
-                        >
-                          {ev.summary.replace('📞 ', '')}
-                        </div>
-                      )
-                      return clienteId ? (
-                        <Link key={ev.id} href={`/clientes/${clienteId}`}>{pill}</Link>
-                      ) : pill
-                    })}
+                    {evDia.slice(0, 3).map((ev) => (
+                      <button
+                        key={ev.id}
+                        type="button"
+                        onClick={() => setEventoEditando(extraerEventoParaEditar(ev))}
+                        className="text-left text-[11px] px-2 py-0.5 bg-[#1B3FA0] text-white rounded-md truncate cursor-pointer hover:bg-blue-800 transition-colors leading-5"
+                        title={ev.summary}
+                      >
+                        {ev.summary.replace('📞 ', '')}
+                      </button>
+                    ))}
                     {evDia.length > 3 && (
                       <span className="text-[10px] text-gray-400 px-1">
                         +{evDia.length - 3} más
@@ -179,15 +198,17 @@ export default function CalendarPage() {
         <div className="space-y-2">
           {proximosEventos.map((ev) => {
             const fecha = getFechaEvento(ev)
-            const clienteId = getClienteIdDeDescripcion(ev.description || '')
             const diffDias = Math.round((fecha.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
             const etiqueta = diffDias === 0 ? 'Hoy' : diffDias === 1 ? 'Mañana' : `En ${diffDias} días`
             const esUrgente = diffDias === 0
 
-            const card = (
+            return (
               <div
                 key={ev.id}
-                className={`p-3 rounded-lg border transition-shadow hover:shadow-sm ${
+                onClick={() => setEventoEditando(extraerEventoParaEditar(ev))}
+                role="button"
+                tabIndex={0}
+                className={`p-3 rounded-lg border transition-shadow hover:shadow-sm cursor-pointer ${
                   esUrgente
                     ? 'border-orange-200 bg-orange-50'
                     : 'border-gray-100 bg-gray-50 hover:bg-white'
@@ -219,10 +240,6 @@ export default function CalendarPage() {
                 </div>
               </div>
             )
-
-            return clienteId ? (
-              <Link key={ev.id} href={`/clientes/${clienteId}`}>{card}</Link>
-            ) : card
           })}
         </div>
       )}
@@ -285,6 +302,14 @@ export default function CalendarPage() {
             <RefreshCw size={14} className={cargando ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">Actualizar</span>
           </button>
+          <button
+            onClick={() => setModalCrear(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-sm"
+            style={{ backgroundColor: '#1B3FA0' }}
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            <span className="hidden sm:inline">Nuevo evento</span>
+          </button>
         </div>
       </div>
 
@@ -341,6 +366,13 @@ export default function CalendarPage() {
             {listaProximos}
           </div>
         </div>
+      )}
+
+      {modalCrear && (
+        <EventoModal onClose={() => setModalCrear(false)} onSuccess={cargarEventos} />
+      )}
+      {eventoEditando && (
+        <EventoModal evento={eventoEditando} onClose={() => setEventoEditando(null)} onSuccess={cargarEventos} />
       )}
     </div>
   )

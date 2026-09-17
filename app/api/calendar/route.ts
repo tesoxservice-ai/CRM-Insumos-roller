@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'primary'
+
+async function requireAuth(): Promise<NextResponse | null> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  return null
+}
 
 // ── Obtener access token con OAuth2 refresh token ────────────────────────────
 async function getAccessToken(): Promise<string> {
@@ -25,45 +33,49 @@ async function getAccessToken(): Promise<string> {
   return data.access_token
 }
 
+function construirEvento(body: { titulo: string; descripcion?: string; fecha: string; clienteId?: string; clienteNombre?: string }) {
+  const urlCRM = body.clienteId
+    ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://crm-insumos-roller.vercel.app'}/clientes/${body.clienteId}`
+    : ''
+
+  const fechaStr = new Date(body.fecha).toISOString().split('T')[0] // YYYY-MM-DD
+
+  return {
+    summary: `📞 ${body.titulo}`,
+    description: [
+      body.descripcion || '',
+      body.clienteNombre ? `Cliente: ${body.clienteNombre}` : '',
+      urlCRM ? `Ver ficha: ${urlCRM}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    start: { date: fechaStr }, // evento de todo el día
+    end: { date: fechaStr },
+    colorId: '1', // azul, igual al color de marca
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: 'popup', minutes: 60 * 9 }, // notificación a las 9am
+      ],
+    },
+  }
+}
+
 // ── POST /api/calendar — Crear evento ────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     const body = await req.json()
-    const { titulo, descripcion, fecha, clienteId, clienteNombre } = body
+    const { titulo, fecha } = body
 
     if (!titulo || !fecha) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
     const accessToken = await getAccessToken()
-
-    // URL de la ficha del cliente en el CRM
-    const urlCRM = clienteId
-      ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://crm-insumos-roller.vercel.app'}/clientes/${clienteId}`
-      : ''
-
-    const fechaEvento = new Date(fecha)
-    const fechaStr = fechaEvento.toISOString().split('T')[0] // YYYY-MM-DD
-
-    const evento = {
-      summary: `📞 ${titulo}`,
-      description: [
-        descripcion || '',
-        clienteNombre ? `Cliente: ${clienteNombre}` : '',
-        urlCRM ? `Ver ficha: ${urlCRM}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      start: { date: fechaStr }, // evento de todo el día
-      end: { date: fechaStr },
-      colorId: '1', // azul, igual al color de marca
-      reminders: {
-        useDefault: false,
-        overrides: [
-          { method: 'popup', minutes: 60 * 9 }, // notificación a las 9am
-        ],
-      },
-    }
+    const evento = construirEvento(body)
 
     const res = await fetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(CALENDAR_ID)}/events`,
@@ -90,8 +102,86 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ── PATCH /api/calendar — Editar evento ──────────────────────────────────────
+export async function PATCH(req: NextRequest) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
+  try {
+    const body = await req.json()
+    const { eventId, titulo, fecha } = body
+
+    if (!eventId || !titulo || !fecha) {
+      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+
+    const accessToken = await getAccessToken()
+    const evento = construirEvento(body)
+
+    const res = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${encodeURIComponent(eventId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(evento),
+      }
+    )
+
+    if (!res.ok) {
+      const error = await res.text()
+      throw new Error(`Error editando evento: ${error}`)
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[calendar/PATCH]', error)
+    return NextResponse.json({ error: 'Error editando el evento en Calendar' }, { status: 500 })
+  }
+}
+
+// ── DELETE /api/calendar — Borrar evento ─────────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
+  try {
+    const { searchParams } = new URL(req.url)
+    const eventId = searchParams.get('eventId')
+
+    if (!eventId) {
+      return NextResponse.json({ error: 'Falta el eventId' }, { status: 400 })
+    }
+
+    const accessToken = await getAccessToken()
+
+    const res = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${encodeURIComponent(eventId)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    )
+
+    if (!res.ok && res.status !== 410) {
+      const error = await res.text()
+      throw new Error(`Error borrando evento: ${error}`)
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[calendar/DELETE]', error)
+    return NextResponse.json({ error: 'Error borrando el evento en Calendar' }, { status: 500 })
+  }
+}
+
 // ── GET /api/calendar — Listar eventos ───────────────────────────────────────
 export async function GET(req: NextRequest) {
+  const authError = await requireAuth()
+  if (authError) return authError
+
   try {
     const { searchParams } = new URL(req.url)
     const desde = searchParams.get('desde') || new Date().toISOString()
