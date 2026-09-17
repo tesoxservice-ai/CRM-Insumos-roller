@@ -3,7 +3,8 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Phone, MessageCircle, Mail, Users, FileText, Search, RefreshCw, History } from 'lucide-react'
+import { Phone, MessageCircle, Mail, Users, FileText, Search, RefreshCw, History, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useHistorial } from '@/lib/supabase/hooks'
 import type { InteraccionConCliente } from '@/lib/supabase/queries'
 import type { TipoInteraccion } from '@/lib/types'
@@ -124,10 +125,12 @@ function FeedItem({ interaccion, grupo }: { interaccion: InteraccionConCliente; 
 }
 
 export function HistorialView() {
+  const isMobile = useIsMobile()
   const { interacciones, loading, error, refetch } = useHistorial()
   const [tipoFiltro, setTipoFiltro] = useState<TipoInteraccion | 'todos'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [vendedorFiltro, setVendedorFiltro] = useState<string>('todos')
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
 
   const vendedores = useMemo(() => {
     const nombres = interacciones
@@ -157,10 +160,11 @@ export function HistorialView() {
   }, [filtradas])
 
   const hayFiltros = tipoFiltro !== 'todos' || busqueda !== '' || vendedorFiltro !== 'todos'
+  const mostrarFiltrosExtra = !isMobile || filtrosAbiertos
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Historial</h1>
           <p className="text-sm text-gray-400 mt-0.5">Todas las interacciones en orden cronológico</p>
@@ -185,35 +189,66 @@ export function HistorialView() {
               className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 placeholder:text-gray-400 transition"
             />
           </div>
-          {vendedores.length > 1 && (
-            <select
-              value={vendedorFiltro}
-              onChange={(e) => setVendedorFiltro(e.target.value)}
-              className="px-3 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 text-gray-700 transition"
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => setFiltrosAbiertos((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-sm font-medium border transition-colors shrink-0 ${
+                hayFiltros ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 bg-gray-50 text-gray-600'
+              }`}
             >
-              <option value="todos">Todos</option>
-              {vendedores.map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
+              <SlidersHorizontal size={14} />
+              Filtros
+              <ChevronDown size={14} className={`transition-transform ${filtrosAbiertos ? 'rotate-180' : ''}`} />
+            </button>
+          ) : (
+            vendedores.length > 1 && (
+              <select
+                value={vendedorFiltro}
+                onChange={(e) => setVendedorFiltro(e.target.value)}
+                className="px-3 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 text-gray-700 transition"
+              >
+                <option value="todos">Todos</option>
+                {vendedores.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            )
           )}
         </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {TIPOS.map((t) => (
-            <button
-              key={t.value}
-              onClick={() => setTipoFiltro(t.value)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                tipoFiltro === t.value
-                  ? 'text-white shadow-sm'
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
-              }`}
-              style={tipoFiltro === t.value ? { backgroundColor: '#1B3FA0' } : {}}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+
+        {mostrarFiltrosExtra && (
+          <div className="space-y-3">
+            {isMobile && vendedores.length > 1 && (
+              <select
+                value={vendedorFiltro}
+                onChange={(e) => setVendedorFiltro(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 text-gray-700 transition"
+              >
+                <option value="todos">Todos los vendedores</option>
+                {vendedores.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            )}
+            <div className="flex gap-1.5 flex-wrap">
+              {TIPOS.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setTipoFiltro(t.value)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    tipoFiltro === t.value
+                      ? 'text-white shadow-sm'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                  style={tipoFiltro === t.value ? { backgroundColor: '#1B3FA0' } : {}}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

@@ -370,17 +370,19 @@ export default function FichaClienteView({ id }: { id: string }) {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {cliente.telefono && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+                <span className="inline-flex items-center gap-2 text-sm text-gray-500">
                   <Phone size={13} className="text-gray-400" />
                   {cliente.telefono}
                   <a
                     href={`https://wa.me/${cliente.telefono.replace('+', '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-full p-1 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-sm active:scale-95 transition-transform"
+                    style={{ backgroundColor: '#25D366' }}
                     aria-label="Abrir WhatsApp"
                   >
-                    <MessageCircle size={14} style={{ color: '#25D366' }} />
+                    <MessageCircle size={14} />
+                    WhatsApp
                   </a>
                 </span>
               )}

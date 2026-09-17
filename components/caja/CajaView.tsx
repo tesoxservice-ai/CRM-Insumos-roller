@@ -6,6 +6,7 @@ import {
   Plus, RefreshCw, X, AlertCircle, Wallet, TrendingUp, TrendingDown,
   Landmark, PiggyBank, Trash2, Package,
 } from 'lucide-react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   getMovimientosCaja,
   createMovimientoCaja,
@@ -274,7 +275,7 @@ function FilaMovimiento({ mov, onDelete }: { mov: MovimientoCajaConRelaciones; o
           </p>
           <p className="text-[11px] text-gray-400">{formatFechaCorta(mov.fecha)}</p>
         </div>
-        <button type="button" onClick={() => onDelete(mov.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1.5 rounded-lg hover:bg-red-50">
+        <button type="button" onClick={() => onDelete(mov.id)} className="opacity-40 md:opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1.5 rounded-lg hover:bg-red-50">
           <Trash2 size={14} />
         </button>
       </div>
@@ -283,6 +284,7 @@ function FilaMovimiento({ mov, onDelete }: { mov: MovimientoCajaConRelaciones; o
 }
 
 export function CajaView() {
+  const isMobile = useIsMobile()
   const [movimientos, setMovimientos] = useState<MovimientoCajaConRelaciones[]>([])
   const [oportunidades, setOportunidades] = useState<OportunidadConCliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -359,19 +361,21 @@ export function CajaView() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isMobile ? 'pb-16' : ''}`}>
 
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Caja</h1>
           <p className="text-sm text-gray-400 mt-0.5">Ingresos, gastos y balance del negocio</p>
         </div>
-        <button type="button" onClick={() => setModalAbierto(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
-          style={{ backgroundColor: BRAND }}>
-          <Plus size={15} strokeWidth={2.5} />
-          Nuevo movimiento
-        </button>
+        {!isMobile && (
+          <button type="button" onClick={() => setModalAbierto(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
+            style={{ backgroundColor: BRAND }}>
+            <Plus size={15} strokeWidth={2.5} />
+            Nuevo movimiento
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -414,12 +418,21 @@ export function CajaView() {
           </div>
 
           {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard icon={TrendingUp} label="Cobrado" value={formatMonto(metricas.bruto)} sub="ingresos del período" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
-            <KpiCard icon={Wallet} label="Por cobrar" value={formatMonto(metricas.totalPendiente)} sub={`${metricas.pendientes.length} pedidos con saldo`} iconBg="bg-amber-50" iconColor="text-amber-600" />
-            <KpiCard icon={TrendingDown} label="Gastos" value={formatMonto(metricas.gastosNegocio)} sub="proveedores y operativos" iconBg="bg-red-50" iconColor="text-red-500" />
-            <KpiCard icon={PiggyBank} label="Ganancia neta" value={formatMonto(metricas.neto)} sub={`retirado para vos: ${formatMonto(metricas.retiros)}`} iconBg="bg-blue-50" iconColor="text-blue-600" />
-          </div>
+          {isMobile ? (
+            <div className="flex gap-3 overflow-x-auto pb-1 -mx-3 px-3">
+              <div className="shrink-0 w-[170px]"><KpiCard icon={TrendingUp} label="Cobrado" value={formatMonto(metricas.bruto)} sub="ingresos del período" iconBg="bg-emerald-50" iconColor="text-emerald-600" /></div>
+              <div className="shrink-0 w-[170px]"><KpiCard icon={Wallet} label="Por cobrar" value={formatMonto(metricas.totalPendiente)} sub={`${metricas.pendientes.length} pedidos con saldo`} iconBg="bg-amber-50" iconColor="text-amber-600" /></div>
+              <div className="shrink-0 w-[170px]"><KpiCard icon={TrendingDown} label="Gastos" value={formatMonto(metricas.gastosNegocio)} sub="proveedores y operativos" iconBg="bg-red-50" iconColor="text-red-500" /></div>
+              <div className="shrink-0 w-[170px]"><KpiCard icon={PiggyBank} label="Ganancia neta" value={formatMonto(metricas.neto)} sub={`retirado: ${formatMonto(metricas.retiros)}`} iconBg="bg-blue-50" iconColor="text-blue-600" /></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <KpiCard icon={TrendingUp} label="Cobrado" value={formatMonto(metricas.bruto)} sub="ingresos del período" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+              <KpiCard icon={Wallet} label="Por cobrar" value={formatMonto(metricas.totalPendiente)} sub={`${metricas.pendientes.length} pedidos con saldo`} iconBg="bg-amber-50" iconColor="text-amber-600" />
+              <KpiCard icon={TrendingDown} label="Gastos" value={formatMonto(metricas.gastosNegocio)} sub="proveedores y operativos" iconBg="bg-red-50" iconColor="text-red-500" />
+              <KpiCard icon={PiggyBank} label="Ganancia neta" value={formatMonto(metricas.neto)} sub={`retirado para vos: ${formatMonto(metricas.retiros)}`} iconBg="bg-blue-50" iconColor="text-blue-600" />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -502,6 +515,17 @@ export function CajaView() {
 
             </div>
           </div>
+        </div>
+      )}
+
+      {isMobile && !loading && !error && (
+        <div className="fixed inset-x-3 bottom-[76px] z-30">
+          <button type="button" onClick={() => setModalAbierto(true)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-lg active:scale-95 transition-transform"
+            style={{ backgroundColor: BRAND }}>
+            <Plus size={16} strokeWidth={2.5} />
+            Registrar movimiento
+          </button>
         </div>
       )}
 

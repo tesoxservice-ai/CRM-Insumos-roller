@@ -9,6 +9,7 @@ import {
   useRef,
 } from 'react'
 import { Plus, RefreshCw, X, AlertCircle, TrendingUp, DollarSign, Users, Inbox } from 'lucide-react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useOportunidadesPorEstado } from '@/lib/supabase/hooks'
 import { updateEstadoPipeline, createOportunidad, getClientes } from '@/lib/supabase/queries'
 import OportunidadCard, { type OportunidadConCliente } from './OportunidadCard'
@@ -203,10 +204,12 @@ function KanbanColumn({ config, tarjetas, onMover }: { config: ColConfig; tarjet
 type OportunidadesPorEstado = Record<EstadoPipeline, OportunidadConCliente[]>
 
 export default function PipelineView() {
+  const isMobile = useIsMobile()
   const { oportunidades: oportunidadesRemoto, loading, error: fetchError } = useOportunidadesPorEstado()
   const [localOps, setLocalOps] = useState<OportunidadesPorEstado | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [columnaActiva, setColumnaActiva] = useState<EstadoPipeline>('consulta')
   const sincronizado = useRef(false)
 
   useEffect(() => {
@@ -315,7 +318,39 @@ export default function PipelineView() {
         </div>
       )}
 
-      {!loading && !fetchError && (
+      {!loading && !fetchError && isMobile && (
+        <>
+          <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-3 px-3">
+            {COLUMNAS.map((col) => {
+              const activa = columnaActiva === col.id
+              return (
+                <button
+                  key={col.id}
+                  type="button"
+                  onClick={() => setColumnaActiva(col.id)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                    activa ? 'text-white shadow-sm' : 'bg-gray-50 text-gray-500 border border-gray-200'
+                  }`}
+                  style={activa ? { backgroundColor: col.accent } : {}}
+                >
+                  {col.label}
+                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${activa ? 'bg-white/25' : 'bg-gray-200'}`}>
+                    {tablero[col.id].length}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="pb-4">
+            {(() => {
+              const config = COLUMNAS.find((c) => c.id === columnaActiva)!
+              return <KanbanColumn config={config} tarjetas={tablero[columnaActiva]} onMover={handleMover} />
+            })()}
+          </div>
+        </>
+      )}
+
+      {!loading && !fetchError && !isMobile && (
         <div className="grid grid-cols-5 gap-3 pb-4">
           {COLUMNAS.map((col) => (
             <KanbanColumn key={col.id} config={col} tarjetas={tablero[col.id]} onMover={handleMover} />

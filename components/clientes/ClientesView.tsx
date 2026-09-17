@@ -177,7 +177,7 @@ export default function ClientesView() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Clientes</h1>
           <p className="text-sm text-gray-400 mt-0.5">Gestión y seguimiento de toda la cartera</p>
@@ -189,7 +189,7 @@ export default function ClientesView() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
           >
             <Download size={14} />
-            Exportar CSV
+            <span className="hidden sm:inline">Exportar CSV</span>
           </button>
           <button
             type="button"
@@ -204,7 +204,7 @@ export default function ClientesView() {
       </div>
 
       {/* Métricas */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total clientes', value: metricas.total, sub: 'en el sistema', iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
           { label: 'Activos', value: metricas.activos, sub: 'compraron al menos una vez', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
@@ -258,6 +258,12 @@ export default function ClientesView() {
             <p className="text-xs text-gray-400">
               {busqueda ? `No se encontró ningún cliente con "${busqueda}"` : 'Creá el primero con el botón + Nuevo cliente'}
             </p>
+          </div>
+        ) : isMobile ? (
+          <div className="flex flex-col gap-2 p-3">
+            {clientesFiltrados.map((cliente) => (
+              <ClienteCardMobile key={cliente.id} cliente={cliente} onClick={() => router.push(`/clientes/${cliente.id}`)} />
+            ))}
           </div>
         ) : (
           <div className="overflow-x-auto">
