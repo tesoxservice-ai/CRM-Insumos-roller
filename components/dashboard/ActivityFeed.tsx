@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Phone, MessageCircle, Mail, Users, FileText } from 'lucide-react'
+import { Phone, MessageCircle, Mail, Users, FileText, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { eliminarInteraccion } from '@/lib/supabase/queries'
 import type { TipoInteraccion } from '@/lib/types'
 
 interface ActividadItem {
@@ -69,6 +70,13 @@ export function ActivityFeed() {
     cargar()
   }, [])
 
+  async function handleDelete(id: string) {
+    const anteriores = items
+    setItems((prev) => prev.filter((i) => i.id !== id))
+    const { error: err } = await eliminarInteraccion(id)
+    if (err) setItems(anteriores)
+  }
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
@@ -103,7 +111,7 @@ export function ActivityFeed() {
         {items.map((item) => {
           const Icon = ICON_MAP[item.tipo]
           return (
-            <div key={item.id} className="flex gap-3 px-4 py-3.5 hover:bg-gray-50/50 transition-colors">
+            <div key={item.id} className="flex gap-3 px-4 py-3.5 hover:bg-gray-50/50 transition-colors group">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${COLOR_MAP[item.tipo]}`}>
                 <Icon size={13} strokeWidth={2} />
               </div>
@@ -125,6 +133,14 @@ export function ActivityFeed() {
                   )}
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(item.id)}
+                className="self-start opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1 rounded-lg hover:bg-red-50 shrink-0"
+                title="Eliminar"
+              >
+                <Trash2 size={13} />
+              </button>
             </div>
           )
         })}

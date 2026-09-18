@@ -23,9 +23,20 @@ export function detectarSeguimiento(texto: string): SeguimientoDetectado | null 
   const textoLower = texto.toLowerCase()
 
   // ── 1. FECHA EXACTA: "3/10", "03/10/2026", "3-10" ──────────────────────────
+  // Sin año explícito, "2-3" o "5/6" suelen ser cantidades ("2-3 cortinas", "5/6 varillas"),
+  // no fechas — si el número va seguido de una unidad conocida, se descarta ese match.
+  const UNIDADES_NO_FECHA = new Set([
+    'cortina', 'cortinas', 'varilla', 'varillas', 'metro', 'metros', 'mt', 'mts',
+    'cm', 'unidad', 'unidades', 'pieza', 'piezas', 'rollo', 'rollos', 'panel',
+    'paneles', 'ambiente', 'ambientes', 'ventana', 'ventanas', 'cuota', 'cuotas',
+    'pago', 'pagos', 'persona', 'personas',
+  ])
   const regexFechaExacta = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/g
-  let match = regexFechaExacta.exec(textoLower)
-  if (match) {
+  let match: RegExpExecArray | null
+  while ((match = regexFechaExacta.exec(textoLower)) !== null) {
+    const siguientePalabra = textoLower.slice(match.index + match[0].length).trimStart().split(/[\s,.;]+/)[0]
+    if (!match[3] && UNIDADES_NO_FECHA.has(siguientePalabra)) continue
+
     const dia = parseInt(match[1])
     const mes = parseInt(match[2]) - 1 // 0-indexed
     const anio = match[3]

@@ -158,6 +158,25 @@ export async function eliminarCliente(id: string): Promise<{ error: string | nul
 
 export async function restaurarCliente(id: string): Promise<{ error: string | null }> {
   const supabase = createClient()
+
+  const { data: cliente, error: errFetch } = await supabase
+    .from('clientes')
+    .select('deleted_at')
+    .eq('id', id)
+    .single()
+  if (errFetch) return { error: errFetch.message }
+
+  // Restaura junto con el cliente sólo las oportunidades que se borraron a la vez que él
+  // (mismo timestamp de eliminación en cascada), sin tocar las que ya estaban en la papelera antes.
+  if (cliente?.deleted_at) {
+    const { error: errOportunidades } = await supabase
+      .from('oportunidades')
+      .update({ deleted_at: null })
+      .eq('cliente_id', id)
+      .eq('deleted_at', cliente.deleted_at)
+    if (errOportunidades) return { error: errOportunidades.message }
+  }
+
   const { error } = await supabase.from('clientes').update({ deleted_at: null }).eq('id', id)
   return { error: error?.message ?? null }
 }
@@ -184,8 +203,9 @@ export async function getOportunidades(): QueryResult<OportunidadConCliente[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('oportunidades')
-    .select(`*, cliente:clientes ( * )`)
+    .select(`*, cliente:clientes!inner ( * )`)
     .is('deleted_at', null)
+    .is('cliente.deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) return { data: null, error: toError(error) }
@@ -266,6 +286,26 @@ export async function eliminarOportunidad(id: string): Promise<{ error: string |
 
 export async function restaurarOportunidad(id: string): Promise<{ error: string | null }> {
   const supabase = createClient()
+
+  const { data: oportunidad, error: errFetch } = await supabase
+    .from('oportunidades')
+    .select('cliente_id, cliente:clientes(deleted_at)')
+    .eq('id', id)
+    .single()
+  if (errFetch) return { error: errFetch.message }
+
+  const clienteRelacionado = Array.isArray(oportunidad?.cliente) ? oportunidad.cliente[0] : oportunidad?.cliente
+
+  // Si el cliente dueño de la oportunidad sigue en la papelera, lo restauramos también
+  // para no dejar una tarjeta "fantasma" en el Pipeline de un cliente inexistente.
+  if (clienteRelacionado?.deleted_at && oportunidad) {
+    const { error: errCliente } = await supabase
+      .from('clientes')
+      .update({ deleted_at: null })
+      .eq('id', oportunidad.cliente_id)
+    if (errCliente) return { error: errCliente.message }
+  }
+
   const { error } = await supabase.from('oportunidades').update({ deleted_at: null }).eq('id', id)
   return { error: error?.message ?? null }
 }
@@ -325,6 +365,18 @@ export async function getTodasInteracciones(): Promise<{
 
   if (error) return { data: null, error: error.message }
   return { data: data as InteraccionConCliente[], error: null }
+}
+
+export async function eliminarInteraccion(id: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('interacciones').delete().eq('id', id)
+  return { error: error?.message ?? null }
+}
+
+export async function limpiarHistorial(): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.from('interacciones').delete().not('id', 'is', null)
+  return { error: error?.message ?? null }
 }
 
 export interface ReportesData {

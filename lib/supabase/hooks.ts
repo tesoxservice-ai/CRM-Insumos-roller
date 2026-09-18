@@ -166,8 +166,9 @@ export function useOportunidades(): UseOportunidadesReturn {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('oportunidades')
-        .select(`*, cliente:clientes ( * )`)
+        .select(`*, cliente:clientes!inner ( * )`)
         .is('deleted_at', null)
+        .is('cliente.deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (cancelled) return

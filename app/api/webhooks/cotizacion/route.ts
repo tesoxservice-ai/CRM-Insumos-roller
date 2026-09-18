@@ -49,34 +49,24 @@ export async function POST(req: NextRequest) {
   try {
     let clienteId: string
 
-    const nombreCliente = body.nombre?.trim() || body.email_cliente || 'Sin identificar'
+    const nombreCliente = body.nombre?.trim() || 'Sin identificar'
 
-    const { data: existentePorEmail } = await supabase
+    const { data: nuevo, error: errCliente } = await supabase
       .from('clientes')
+      .insert({
+        nombre: nombreCliente,
+        telefono: body.telefono ?? null,
+        canal_entrada: 'configurador',
+        estado: 'potencial',
+      })
       .select('id')
-      .ilike('nombre', `%${body.email_cliente}%`)
-      .maybeSingle()
+      .single()
 
-    if (existentePorEmail) {
-      clienteId = existentePorEmail.id as string
-    } else {
-      const { data: nuevo, error: errCliente } = await supabase
-        .from('clientes')
-        .insert({
-          nombre: nombreCliente,
-          telefono: body.telefono ?? null,
-          canal_entrada: 'configurador',
-          estado: 'potencial',
-        })
-        .select('id')
-        .single()
-
-      if (errCliente || !nuevo) {
-        console.error('[webhook/cotizacion] Error creando cliente:', errCliente)
-        return respError('Error al crear cliente', 500)
-      }
-      clienteId = nuevo.id as string
+    if (errCliente || !nuevo) {
+      console.error('[webhook/cotizacion] Error creando cliente:', errCliente)
+      return respError('Error al crear cliente', 500)
     }
+    clienteId = nuevo.id as string
 
     const detalleCompleto = [
       body.detalle,
