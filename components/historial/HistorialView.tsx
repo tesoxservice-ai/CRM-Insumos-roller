@@ -3,10 +3,10 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Phone, MessageCircle, Mail, Users, FileText, Search, RefreshCw, History, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Phone, MessageCircle, Mail, Users, FileText, Search, RefreshCw, History, SlidersHorizontal, ChevronDown, Trash2 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useHistorial } from '@/lib/supabase/hooks'
-import type { InteraccionConCliente } from '@/lib/supabase/queries'
+import { eliminarInteraccion, limpiarHistorial, type InteraccionConCliente } from '@/lib/supabase/queries'
 import type { TipoInteraccion } from '@/lib/types'
 
 const TIPOS: { value: TipoInteraccion | 'todos'; label: string }[] = [
@@ -85,7 +85,15 @@ function LoadingSkeleton() {
   )
 }
 
-function FeedItem({ interaccion, grupo }: { interaccion: InteraccionConCliente; grupo: GrupoKey }) {
+function FeedItem({
+  interaccion,
+  grupo,
+  onDelete,
+}: {
+  interaccion: InteraccionConCliente
+  grupo: GrupoKey
+  onDelete: (id: string) => void
+}) {
   const tipo = interaccion.tipo as TipoInteraccion
   const Icon = ICON_MAP[tipo]
   const tipoLabel = TIPOS.find((t) => t.value === tipo)?.label ?? tipo
@@ -120,6 +128,14 @@ function FeedItem({ interaccion, grupo }: { interaccion: InteraccionConCliente; 
           )}
         </div>
       </div>
+      <button
+        type="button"
+        onClick={() => onDelete(interaccion.id)}
+        className="self-start opacity-40 md:opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1.5 rounded-lg hover:bg-red-50 shrink-0"
+        title="Eliminar"
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   )
 }
@@ -162,6 +178,25 @@ export function HistorialView() {
   const hayFiltros = tipoFiltro !== 'todos' || busqueda !== '' || vendedorFiltro !== 'todos'
   const mostrarFiltrosExtra = !isMobile || filtrosAbiertos
 
+  async function handleEliminar(id: string) {
+    const { error: err } = await eliminarInteraccion(id)
+    if (err) {
+      window.alert(`Error al eliminar: ${err}`)
+      return
+    }
+    refetch()
+  }
+
+  async function handleVaciar() {
+    if (!window.confirm('¿Vaciar todo el historial? Esta acción no se puede deshacer.')) return
+    const { error: err } = await limpiarHistorial()
+    if (err) {
+      window.alert(`Error al vaciar el historial: ${err}`)
+      return
+    }
+    refetch()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-2">
@@ -170,10 +205,22 @@ export function HistorialView() {
           <p className="text-sm text-gray-400 mt-0.5">Todas las interacciones en orden cronológico</p>
         </div>
         {!loading && !error && (
-          <p className="text-sm text-gray-400 mt-1">
-            {filtradas.length} interacción{filtradas.length !== 1 ? 'es' : ''}
-            {hayFiltros ? ' encontradas' : ' en total'}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-gray-400">
+              {filtradas.length} interacción{filtradas.length !== 1 ? 'es' : ''}
+              {hayFiltros ? ' encontradas' : ' en total'}
+            </p>
+            {interacciones.length > 0 && (
+              <button
+                type="button"
+                onClick={handleVaciar}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-600 transition-colors"
+              >
+                <Trash2 size={13} />
+                Vaciar historial
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -288,7 +335,7 @@ export function HistorialView() {
                 </div>
                 <div className="divide-y divide-gray-50">
                   {grupos.get(grupo)!.map((interaccion) => (
-                    <FeedItem key={interaccion.id} interaccion={interaccion} grupo={grupo} />
+                    <FeedItem key={interaccion.id} interaccion={interaccion} grupo={grupo} onDelete={handleEliminar} />
                   ))}
                 </div>
               </div>
