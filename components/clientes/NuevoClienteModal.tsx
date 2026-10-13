@@ -4,11 +4,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { createCliente, getVendedores } from '@/lib/supabase/queries'
-import type { CanalEntrada, EstadoCliente, Vendedor } from '@/lib/types'
+import type { CanalEntrada, Cliente, EstadoCliente, Vendedor } from '@/lib/types'
 
 interface NuevoClienteModalProps {
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (cliente?: Cliente) => void
+  // Valores precargados (ej: al crear un cliente desde la bandeja de WhatsApp)
+  initial?: Partial<Pick<FormState, 'nombre' | 'telefono' | 'canal_entrada'>>
 }
 
 interface FormState {
@@ -69,8 +71,8 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 
 const inputClass = 'w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-colors'
 
-export default function NuevoClienteModal({ onClose, onSuccess }: NuevoClienteModalProps) {
-  const [form, setForm] = useState<FormState>(FORM_INICIAL)
+export default function NuevoClienteModal({ onClose, onSuccess, initial }: NuevoClienteModalProps) {
+  const [form, setForm] = useState<FormState>({ ...FORM_INICIAL, ...initial })
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [telefonoError, setTelefonoError] = useState<string | null>(null)
@@ -103,7 +105,7 @@ export default function NuevoClienteModal({ onClose, onSuccess }: NuevoClienteMo
 
     const vendedorSeleccionado = vendedores.find((v) => v.id === form.vendedor_id) ?? null
 
-    const { error } = await createCliente({
+    const { data: creado, error } = await createCliente({
       nombre: form.nombre.trim() || 'Sin nombre',
       telefono: form.telefono.trim() || null,
       estado: form.estado,
@@ -121,7 +123,7 @@ export default function NuevoClienteModal({ onClose, onSuccess }: NuevoClienteMo
 
     setLoading(false)
     if (error) { setSubmitError(error.message); return }
-    onSuccess()
+    onSuccess(creado ?? undefined)
     onClose()
   }
 

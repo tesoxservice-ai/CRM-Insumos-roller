@@ -11,6 +11,7 @@ import type {
   Oportunidad,
   TipoInteraccion,
   Vendedor,
+  WhatsappMensaje,
 } from '@/lib/types'
 
 type QueryResult<T> = Promise<{ data: T | null; error: Error | null }>
@@ -515,4 +516,82 @@ export async function getPapelera(): Promise<PapeleraData> {
     oportunidades: oportunidadesRes.data as OportunidadConCliente[],
     error: null,
   }
+}
+
+// ============================================================
+// WHATSAPP (bandeja)
+// ============================================================
+
+const COLUMNAS_MENSAJE =
+  'id, wa_message_id, telefono, telefono_clave, nombre_perfil, direccion, tipo, texto, timestamp_wa, cliente_id, leido'
+
+// Últimos mensajes de todas las conversaciones (la bandeja los agrupa por teléfono)
+export async function getMensajesWhatsapp(limite = 2000): Promise<{ data: WhatsappMensaje[]; error: string | null }> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('whatsapp_mensajes')
+    .select(COLUMNAS_MENSAJE)
+    .order('timestamp_wa', { ascending: false })
+    .limit(limite)
+  if (error) return { data: [], error: error.message }
+  return { data: (data ?? []) as WhatsappMensaje[], error: null }
+}
+
+export async function contarWhatsappNoLeidos(): Promise<number> {
+  const supabase = createClient()
+  const { count } = await supabase
+    .from('whatsapp_mensajes')
+    .select('id', { count: 'exact', head: true })
+    .eq('leido', false)
+  return count ?? 0
+}
+
+export async function marcarConversacionLeida(telefonoClave: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('whatsapp_mensajes')
+    .update({ leido: true })
+    .eq('telefono_clave', telefonoClave)
+    .eq('leido', false)
+  return { error: error?.message ?? null }
+}
+
+// Asocia a la ficha los mensajes de ese número que habían quedado sin vincular
+export async function vincularMensajesACliente(telefonoClave: string, clienteId: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error: errMensajes } = await supabase
+    .from('whatsapp_mensajes')
+    .update({ cliente_id: clienteId })
+    .eq('telefono_clave', telefonoClave)
+    .is('cliente_id', null)
+  if (errMensajes) return { error: errMensajes.message }
+
+  const { error } = await supabase
+    .from('clientes')
+    .update({ ultima_interaccion: new Date().toISOString() })
+    .eq('id', clienteId)
+  return { error: error?.message ?? null }
+}
+
+export async function getConversacionesArchivadas(): Promise<Record<string, string>> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('whatsapp_conversaciones')
+    .select('telefono_clave, archivada_at')
+    .not('archivada_at', 'is', null)
+  const mapa: Record<string, string> = {}
+  for (const f of data ?? []) mapa[f.telefono_clave as string] = f.archivada_at as string
+  return mapa
+}
+
+export async function archivarConversacion(telefonoClave: string, archivar: boolean): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const ahora = new Date().toISOString()
+  const { error } = await supabase
+    .from('whatsapp_conversaciones')
+    .upsert(
+      { telefono_clave: telefonoClave, archivada_at: archivar ? ahora : null, updated_at: ahora },
+      { onConflict: 'telefono_clave' },
+    )
+  return { error: error?.message ?? null }
 }

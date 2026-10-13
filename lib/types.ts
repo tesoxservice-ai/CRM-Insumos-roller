@@ -116,3 +116,19 @@ export interface ColumnaKanban {
   label: string
   oportunidades: (Oportunidad & { cliente: Cliente })[]
 }
+
+// ─── WhatsApp ──────────────────────────────────────────────────────────────
+
+export interface WhatsappMensaje {
+  id: string
+  wa_message_id: string
+  telefono: string
+  telefono_clave: string
+  nombre_perfil: string | null
+  direccion: 'entrante' | 'saliente'
+  tipo: string
+  texto: string | null
+  timestamp_wa: string
+  cliente_id: string | null
+  leido: boolean
+}

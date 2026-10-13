@@ -7,9 +7,10 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, KanbanSquare, Wallet, MoreHorizontal, Calculator,
-  Users, Clock, BarChart3, Calendar, LogOut, X, Trash2, type LucideIcon,
+  Users, Clock, BarChart3, Calendar, LogOut, X, Trash2, MessageCircle, type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useWhatsappNoLeidos } from '@/lib/supabase/hooks'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { User } from '@supabase/supabase-js'
 
@@ -34,6 +35,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Dashboard',  href: '/dashboard', icon: LayoutDashboard },
       { label: 'Caja',       href: '/caja',      icon: Wallet },
       { label: 'Pipeline',   href: '/pipeline',  icon: KanbanSquare },
+      { label: 'WhatsApp',   href: '/whatsapp',  icon: MessageCircle },
       { label: 'Cotizador',  href: '/cotizador', icon: Calculator },
       { label: 'Calendario', href: '/calendar',  icon: Calendar },
     ],
@@ -59,6 +61,7 @@ const MOBILE_TABS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Clientes',  href: '/clientes',  icon: Users },
   { label: 'Pipeline',  href: '/pipeline',  icon: KanbanSquare },
+  { label: 'WhatsApp',  href: '/whatsapp',  icon: MessageCircle },
   { label: 'Caja',      href: '/caja',      icon: Wallet },
 ]
 
@@ -89,7 +92,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
         className={active ? 'text-white' : 'text-gray-400'}
       />
       <span className="flex-1">{item.label}</span>
-      {item.badge !== undefined && (
+      {!!item.badge && (
         <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ${active ? 'bg-white text-blue-700' : 'bg-red-500 text-white'}`}>
           {item.badge}
         </span>
@@ -139,10 +142,15 @@ function MobileTabLink({ item, active }: { item: NavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
-      className="flex flex-1 flex-col items-center justify-center gap-1 py-2"
+      className="relative flex flex-1 flex-col items-center justify-center gap-1 py-2"
       aria-label={item.label}
     >
       <Icon size={20} strokeWidth={active ? 2.5 : 2} color={active ? BRAND : '#9CA3AF'} />
+      {!!item.badge && (
+        <span className="absolute right-1/4 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+          {item.badge > 99 ? '99+' : item.badge}
+        </span>
+      )}
     </Link>
   )
 }
@@ -207,6 +215,7 @@ function MasDrawer({ onClose }: { onClose: () => void }) {
 function BottomNav() {
   const pathname = usePathname()
   const [masAbierto, setMasAbierto] = useState(false)
+  const waNoLeidos = useWhatsappNoLeidos()
   const masActivo = MOBILE_MAS_ITEMS.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
 
   return (
@@ -218,7 +227,7 @@ function BottomNav() {
         {MOBILE_TABS.map((item) => (
           <MobileTabLink
             key={item.href}
-            item={item}
+            item={item.href === '/whatsapp' ? { ...item, badge: waNoLeidos } : item}
             active={pathname === item.href || pathname.startsWith(item.href + '/')}
           />
         ))}
@@ -239,6 +248,7 @@ function BottomNav() {
 function DesktopSidebar() {
   const pathname = usePathname()
   const { user, nombre, handleLogout } = useUsuarioActual()
+  const waNoLeidos = useWhatsappNoLeidos()
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-gray-100 bg-white">
@@ -267,7 +277,7 @@ function DesktopSidebar() {
                 {section.items.map((item) => (
                   <li key={item.href}>
                     <NavLink
-                      item={item}
+                      item={item.href === '/whatsapp' ? { ...item, badge: waNoLeidos } : item}
                       active={pathname === item.href || pathname.startsWith(item.href + '/')}
                     />
                   </li>
