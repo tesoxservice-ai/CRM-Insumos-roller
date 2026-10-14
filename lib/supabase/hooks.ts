@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { contarWhatsappNoLeidos, getTodasInteracciones, type InteraccionConCliente } from '@/lib/supabase/queries'
+import { getTodasInteracciones, type InteraccionConCliente } from '@/lib/supabase/queries'
 import type {
   CanalEntrada,
   Cliente,
@@ -276,39 +276,4 @@ export function useHistorial(): UseHistorialReturn {
   useEffect(() => { fetch() }, [fetch])
 
   return { interacciones, loading, error, refetch: fetch }
-}
-
-// ============================================================
-// useWhatsappNoLeidos
-// ============================================================
-
-// La bandeja dispara este evento cuando marca conversaciones como leídas
-export const EVENTO_WA_LEIDOS = 'wa:leidos'
-
-// Cantidad de mensajes entrantes sin leer (badge del menú). Se actualiza en vivo.
-export function useWhatsappNoLeidos(): number {
-  const [cantidad, setCantidad] = useState(0)
-
-  useEffect(() => {
-    let activo = true
-    const refrescar = () => { contarWhatsappNoLeidos().then((n) => { if (activo) setCantidad(n) }) }
-    refrescar()
-
-    const supabase = createClient()
-    const canal = supabase
-      .channel('whatsapp-no-leidos')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_mensajes' }, refrescar)
-      .subscribe()
-    const timer = setInterval(refrescar, 60_000)
-    window.addEventListener(EVENTO_WA_LEIDOS, refrescar)
-
-    return () => {
-      activo = false
-      clearInterval(timer)
-      window.removeEventListener(EVENTO_WA_LEIDOS, refrescar)
-      supabase.removeChannel(canal)
-    }
-  }, [])
-
-  return cantidad
 }

@@ -3,7 +3,6 @@
 // verificación de firma, parseo del payload y normalización de teléfonos.
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { claveTelefono, soloDigitos } from './telefono'
 
 export interface MensajeWhatsApp {
   waMessageId: string
@@ -16,7 +15,16 @@ export interface MensajeWhatsApp {
   payload: unknown
 }
 
-export { soloDigitos, claveTelefono }
+export function soloDigitos(telefono: string): string {
+  return telefono.replace(/\D/g, '')
+}
+
+// WhatsApp entrega "5491155960412" y en el CRM hay "+5411..." o "5411...":
+// comparar los últimos 10 dígitos (código de área + número) evita los
+// problemas del 9 y del prefijo de país.
+export function claveTelefono(telefono: string): string {
+  return soloDigitos(telefono).slice(-10)
+}
 
 export function firmaValida(rawBody: string, header: string | null, appSecret: string): boolean {
   if (!header || !header.startsWith('sha256=')) return false
