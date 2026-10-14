@@ -28,7 +28,8 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  if (!user && pathname !== '/login') {
+  // /privacidad es pública: Google exige poder abrirla sin iniciar sesión
+  if (!user && pathname !== '/login' && pathname !== '/privacidad') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
